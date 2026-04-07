@@ -31,7 +31,7 @@ Tasks live in [`Taskfile.yml`](Taskfile.yml). The ones that matter day to day:
 
 Everything else (`lint`, `verify`, `smoke`, …) is there for hygiene and confidence. **`task tmux`** is how this setup is meant to feel in practice: persistent shell, persistent session, laptop optional.
 
-## Why this repo exists (Apr 2026)
+## Alternatives
 
 - [Cursor self-hosted cloud agents](https://cursor.com/blog/self-hosted-cloud-agents) are undercooked: as of **April 4, 2026**, they could not even autocomplete files.
 - [Agent Client Protocol (ACP)](https://agentclientprotocol.com/get-started/introduction#overview) remote agents are still **work in progress**.
