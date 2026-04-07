@@ -1,0 +1,219 @@
+---
+- name: Verify self-hosted Cursor agent
+  hosts: vps
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Verify cursor user exists
+      ansible.builtin.command:
+        argv:
+          - id
+          - -u
+          - "{{ cursor_user }}"
+      changed_when: false
+
+    - name: Read cursor passwd entry
+      ansible.builtin.command:
+        argv:
+          - getent
+          - passwd
+          - "{{ cursor_user }}"
+      register: cursor_passwd_entry
+      changed_when: false
+
+    - name: Verify cursor login shell is fish
+      ansible.builtin.assert:
+        that:
+          - cursor_passwd_entry.stdout.endswith(':' ~ cursor_shell)
+        fail_msg: "expected {{ cursor_user }} login shell to be {{ cursor_shell }}, got {{ cursor_passwd_entry.stdout }}"
+
+    - name: Verify cursor home exists
+      ansible.builtin.command:
+        argv:
+          - test
+          - -d
+          - "{{ cursor_home }}"
+      changed_when: false
+
+    - name: Verify cursor workspace root exists
+      ansible.builtin.command:
+        argv:
+          - test
+          - -d
+          - "{{ cursor_workspace_root }}"
+      changed_when: false
+
+    - name: Probe GitHub SSH (git@github.com)
+      ansible.builtin.command:
+        argv:
+          - ssh
+          - -o
+          - BatchMode=yes
+          - -o
+          - StrictHostKeyChecking=yes
+          - -T
+          - git@github.com
+      become: true
+      become_user: "{{ cursor_user }}"
+      environment:
+        HOME: "{{ cursor_home }}"
+      register: github_ssh_probe
+      failed_when: false
+      changed_when: false
+
+    - name: Assert GitHub SSH authentication succeeded
+      ansible.builtin.assert:
+        that:
+          - >-
+            'successfully authenticated' in
+            ((github_ssh_probe.stdout | default('')) ~ (github_ssh_probe.stderr | default(''))) | lower
+        fail_msg: >-
+          expected GitHub SSH probe to confirm authentication;
+          rc={{ github_ssh_probe.rc }} stdout={{ github_ssh_probe.stdout | default('') }}
+          stderr={{ github_ssh_probe.stderr | default('') }}
+
+    - name: Stat GitHub deploy private key
+      ansible.builtin.stat:
+        path: "{{ cursor_github_ssh_private_key_path }}"
+      register: github_deploy_key_stat
+
+    - name: Assert GitHub deploy private key permissions
+      ansible.builtin.assert:
+        that:
+          - github_deploy_key_stat.stat.exists
+          - github_deploy_key_stat.stat.isreg
+          - github_deploy_key_stat.stat.mode == '0600'
+          - github_deploy_key_stat.stat.pw_name == cursor_user
+        fail_msg: >-
+          expected {{ cursor_github_ssh_private_key_path }} to exist as a regular file 0600 owned by {{ cursor_user }};
+          got exists={{ github_deploy_key_stat.stat.exists | default(false) }}
+          mode={{ github_deploy_key_stat.stat.mode | default('missing') }}
+          owner={{ github_deploy_key_stat.stat.pw_name | default('missing') }}
+
+    - name: Verify gh has no persistent login on VPS
+      ansible.builtin.command:
+        argv:
+          - gh
+          - auth
+          - status
+      become: true
+      become_user: "{{ cursor_user }}"
+      environment:
+        HOME: "{{ cursor_home }}"
+      register: gh_auth_status
+      changed_when: false
+      failed_when: gh_auth_status.rc == 0
+
+    - name: Discover installed Cursor agent binary
+      ansible.builtin.shell: |
+        set -euo pipefail
+        export HOME="{{ cursor_home }}"
+        export PATH="{{ cursor_path }}"
+        if command -v agent >/dev/null 2>&1; then
+          command -v agent
+        else
+          command -v cursor-agent
+        fi
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ cursor_user }}"
+      environment:
+        HOME: "{{ cursor_home }}"
+        PATH: "{{ cursor_path }}"
+      register: cursor_binary
+      changed_when: false
+
+    - name: Verify cursor binary responds
+      ansible.builtin.command: "{{ cursor_binary.stdout }} --version"
+      become: true
+      become_user: "{{ cursor_user }}"
+      environment:
+        HOME: "{{ cursor_home }}"
+        PATH: "{{ cursor_path }}"
+      changed_when: false
+
+    - name: Verify Bun responds in cursor login shell
+      ansible.builtin.shell: |
+        set -euo pipefail
+        {{ cursor_shell }} -lic 'bun --version'
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ cursor_user }}"
+      environment:
+        HOME: "{{ cursor_home }}"
+      changed_when: false
+
+    - name: Verify Task responds in cursor login shell
+      ansible.builtin.shell: |
+        set -euo pipefail
+        {{ cursor_shell }} -lic 'task --version'
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ cursor_user }}"
+      environment:
+        HOME: "{{ cursor_home }}"
+      changed_when: false
+
+    - name: Verify fish responds
+      ansible.builtin.command:
+        argv:
+          - fish
+          - --version
+      changed_when: false
+
+    - name: Verify fish config loads for cursor
+      ansible.builtin.shell: |
+        set -euo pipefail
+        fish -i -c 'functions -q fish_prompt; printf "__FISH_CONFIG_OK__\n"'
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ cursor_user }}"
+      environment:
+        HOME: "{{ cursor_home }}"
+      register: cursor_fish_config
+      changed_when: false
+      failed_when: "'__FISH_CONFIG_OK__' not in cursor_fish_config.stdout"
+
+    - name: Verify ast-grep responds in cursor login shell
+      ansible.builtin.shell: |
+        set -euo pipefail
+        {{ cursor_shell }} -lic 'ast-grep --version'
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ cursor_user }}"
+      environment:
+        HOME: "{{ cursor_home }}"
+      changed_when: false
+
+    - name: Verify scc responds
+      ansible.builtin.command:
+        argv:
+          - scc
+          - --version
+      changed_when: false
+
+    - name: List uv tools for cursor user
+      ansible.builtin.command:
+        argv:
+          - "{{ cursor_uv_binary_path }}"
+          - tool
+          - list
+      become: true
+      become_user: "{{ cursor_user }}"
+      environment: "{{ cursor_uv_environment }}"
+      register: cursor_uv_tool_list
+      changed_when: false
+
+    - name: Assert required uv tools are registered for cursor user
+      ansible.builtin.assert:
+        that:
+          - (cursor_uv_tool_list.stdout | regex_search('(?m)^' ~ (item | regex_escape) ~ '\\b')) is not none
+        fail_msg: "expected uv tool list to include {{ item }} for {{ cursor_user }}"
+      loop: "{{ cursor_uv_tools }}"
+      loop_control:
+        label: "{{ item }}"

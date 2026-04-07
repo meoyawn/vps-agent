@@ -1,0 +1,52 @@
+---
+- name: Install fish package
+  ansible.builtin.apt:
+    name: fish
+    state: present
+
+- name: Ensure cursor user login shell is fish
+  ansible.builtin.user:
+    name: "{{ cursor_user }}"
+    shell: "{{ cursor_shell }}"
+
+- name: Ensure fish config directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ cursor_user }}"
+    group: "{{ cursor_group }}"
+    mode: "0755"
+  loop:
+    - "{{ cursor_home }}/.config"
+    - "{{ cursor_home }}/.config/fish"
+    - "{{ cursor_home }}/.config/fish/conf.d"
+    - "{{ cursor_home }}/.config/fish/completions"
+
+- name: Install fish environment config
+  ansible.builtin.template:
+    src: conf.d/cursor_env.fish.j2
+    dest: "{{ cursor_home }}/.config/fish/conf.d/cursor_env.fish"
+    owner: "{{ cursor_user }}"
+    group: "{{ cursor_group }}"
+    mode: "0644"
+
+- name: Install curated fish config
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ cursor_home }}/.config/fish/{{ item.dest }}"
+    owner: "{{ cursor_user }}"
+    group: "{{ cursor_group }}"
+    mode: "0644"
+  loop:
+    - src: config.fish
+      dest: config.fish
+    - src: conf.d/fish_frozen_key_bindings.fish
+      dest: conf.d/fish_frozen_key_bindings.fish
+    - src: conf.d/fish_frozen_theme.fish
+      dest: conf.d/fish_frozen_theme.fish
+    - src: completions/ast-grep.fish
+      dest: completions/ast-grep.fish
+    - src: completions/bun.fish
+      dest: completions/bun.fish
+    - src: completions/task.fish
+      dest: completions/task.fish

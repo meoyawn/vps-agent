@@ -1,0 +1,103 @@
+version: "3"
+
+vars:
+  ANSIBLE_DIR: "{{.ROOT_DIR}}/ansible"
+  INVENTORY: '{{default (printf "%s/inventory/hosts.yaml" .ANSIBLE_DIR) .INVENTORY}}'
+  PLAYBOOK: '{{default (printf "%s/vps.yaml" .ANSIBLE_DIR) .PLAYBOOK}}'
+  UPDATE_CURSOR_AGENT_PLAYBOOK: '{{default (printf "%s/update-cursor-agent.yaml" .ANSIBLE_DIR) .UPDATE_CURSOR_AGENT_PLAYBOOK}}'
+  TARGET: '{{default "vps" .TARGET}}'
+  TMUX_SESSION: '{{default "cursor" .TMUX_SESSION}}'
+
+env:
+  ANSIBLE_CONFIG: "{{.ANSIBLE_DIR}}/ansible.cfg"
+  ANSIBLE_LOCAL_TEMP: "{{.ROOT_DIR}}/.ansible/tmp"
+  ANSIBLE_REMOTE_TEMP: /tmp
+
+tasks:
+  default:
+    cmds:
+      - task --list
+
+  check:
+    desc: Validate local prerequisites and required files
+    run: once
+    cmds:
+      - mkdir -p .ansible/tmp
+      - test -f "{{.INVENTORY}}"
+      - ansible-playbook --version
+      - task --version
+
+  syntax:
+    desc: Run ansible syntax validation
+    cmds:
+      - ansible-playbook -i {{.INVENTORY}} {{.PLAYBOOK}} --syntax-check --limit {{.TARGET}}
+
+  lint:
+    desc: Run ansible-lint with repo-local Ansible temp paths
+    cmds:
+      - mkdir -p .ansible/tmp
+      - ansible-lint {{.ANSIBLE_DIR}}
+
+  apply:
+    desc: Apply the agent playbook once
+    cmds:
+      - ansible-playbook -i {{.INVENTORY}} {{.PLAYBOOK}} --limit {{.TARGET}}
+
+  update-cursor-agent:
+    desc: Update Cursor agent on the live VPS
+    cmds:
+      - ansible-playbook -i {{.INVENTORY}} {{.UPDATE_CURSOR_AGENT_PLAYBOOK}} --limit {{.TARGET}}
+
+  idempotence:
+    desc: After apply, run playbook once more; fail if ansible-playbook output matches changed=[1-9] in recap (check-idempotence.sh)
+    cmds:
+      - ./scripts/check-idempotence.sh {{.INVENTORY}} {{.PLAYBOOK}} {{.TARGET}}
+
+  smoke:
+    desc: Run smoke checks against the live VPS
+    cmds:
+      - ansible-playbook -i {{.INVENTORY}} {{.ANSIBLE_DIR}}/verify.yaml --limit {{.TARGET}}
+
+  verify:
+    desc: Fast real-VPS verification loop
+    cmds:
+      - task lint
+      - task syntax
+      - task apply
+      - task idempotence
+      - task smoke
+      - echo "verification passed"
+
+  ssh:
+    desc: SSH to first host in TARGET using ansible_user + ansible_host from inventory (typically root; cursor user has no keys by default)
+    cmds:
+      - |
+        host_spec=$(python3 -c "
+        import json, subprocess, sys
+        inv = sys.argv[1]
+        target = sys.argv[2]
+        d = json.loads(subprocess.check_output(['ansible-inventory', '-i', inv, '--list']))
+        hosts = d[target]['hosts']
+        h = hosts[0]
+        hv = d['_meta']['hostvars'][h]
+        user = hv.get('ansible_user', 'root')
+        print(f'{user}@{hv[\"ansible_host\"]}', end='')
+        " "{{.INVENTORY}}" "{{.TARGET}}")
+        exec ssh "$host_spec" {{.CLI_ARGS}}
+
+  tmux:
+    desc: SSH to first host in TARGET, then attach or create a tmux session as cursor
+    cmds:
+      - |
+        host_spec=$(python3 -c "
+        import json, subprocess, sys
+        inv = sys.argv[1]
+        target = sys.argv[2]
+        d = json.loads(subprocess.check_output(['ansible-inventory', '-i', inv, '--list']))
+        hosts = d[target]['hosts']
+        h = hosts[0]
+        hv = d['_meta']['hostvars'][h]
+        user = hv.get('ansible_user', 'root')
+        print(f'{user}@{hv[\"ansible_host\"]}', end='')
+        " "{{.INVENTORY}}" "{{.TARGET}}")
+        exec ssh -tt "$host_spec" "su - cursor -c 'exec tmux new-session -A -s {{.TMUX_SESSION}}'"
