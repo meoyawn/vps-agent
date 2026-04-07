@@ -7,9 +7,12 @@ if status is-interactive
     alias ga        'git add'
     alias gcmsg     'git commit -m'
     alias gp        'git push'
-    alias ggpull    'git pull origin'
     alias gco       'git checkout'
     alias gcm       'git checkout master'
+
+    function ggpull --description 'Pull current branch from origin' --wraps 'git pull'
+        git pull origin (git branch --show-current) $argv
+    end
 end
 
 function fish_prompt
