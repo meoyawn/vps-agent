@@ -9,6 +9,7 @@
 - never change `ansible/**/*` without running `task verify`
 - never change `Taskfile.yml` without running `task check`
 - never use `pip`, use `uv`
+- never use `bash` in Markdown code blocks, use `sh` instead
 
 ## Project vocabulary
 

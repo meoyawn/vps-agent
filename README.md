@@ -2,34 +2,47 @@
 
 Run the agent on a VPS so you can **close the laptop** and get on with whatever else you are doing.
 
-**vps-agent** is the Ansible side of that: provision an Ubuntu VPS with [Cursor AgentCLI](https://cursor.com/blog/cli) and a persistent shell session you can leave attached remotely.
+**vps-agent** is the Ansible side of that: provision an Ubuntu VPS with [Cursor Agent CLI](https://cursor.com/blog/cli) and a persistent shell session you can leave attached remotely.
 
-## What you need first
+## Prerequisites
 
-1. A VPS you can SSH into (Ubuntu 24.04 ARM64 is what this repo assumes).
-2. An inventory file at **`ansible/inventory/hosts.yaml`**. It is gitignored on purpose; create it locally and fill in your host. The group must be **`vps`**—that is what the playbooks target. Minimal shape:
+### On laptop
 
-   ```yaml
-   all:
-     children:
-       vps:
-         hosts:
-           my-vps:
-             ansible_host: 203.0.113.10
-             ansible_user: root
+- **[taskfile.dev](https://taskfile.dev/installation/)**.
+- [**ansible-core**](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html) and [**ansible-lint**](https://ansible.readthedocs.io/projects/lint/). Recommended with [uv](https://docs.astral.sh/uv/):
+
+  ```sh
+  uv tool install ansible-core
+  uv tool install ansible-lint
+  ```
+
+- **[GitHub CLI](https://cli.github.com/) (`gh`)** — used during provisioning (registering SSH keys with GitHub).
+- A working GitHub login for that CLI: **`gh auth status`** must succeed before you run playbooks that talk to GitHub.
+
+### VPS
+
+- Provision **ARM64 Ubuntu 24.04**.
+
+## Apply config
+
+1. An inventory file at **`ansible/inventory/hosts.yaml`**. It is gitignored on purpose. Copy the example and edit it for your VPS; the group must be **`vps`**—that is what the playbooks target.
+
+   ```sh
+   cp ansible/inventory/hosts.example.yaml ansible/inventory/hosts.yaml
    ```
 
-3. Run **`task apply`** once the inventory exists.
+2. Run **`task apply`** once the inventory exists.
 
-## How you actually use it: [taskfile.dev](https://taskfile.dev)
+## Workflow
 
-Tasks live in [`Taskfile.yml`](Taskfile.yml). The ones that matter day to day:
+Run **`task tmux`** from your machine. It SSHs to the first host in the `vps` inventory group and attaches to a **tmux** session as the `cursor` user (default session name `cursor`), creating it if missing. Do agent work inside that session; detach when you want your laptop back—the shell and session stay on the VPS.
 
-- **`task apply`** — Runs the main playbook (`ansible/vps.yaml`) once; provisions the agent environment on the VPS.
+- Clone repositories under **`~/workspace/`** on the VPS. That directory is created for the `cursor` user so project paths stay in one place.
+- Use as many **tmux** windows (tab-like) or **panes** (splits in the same window) as you need—each can be a different repo or working tree—without juggling multiple SSH sessions.
+
+## Maintenance
+
 - **`task update-cursor-agent`** — Updates the Cursor agent on the already-provisioned host (separate playbook).
-- **`task tmux`** — **This is the workflow.** SSHs to the first host in the `vps` group and attaches or creates a tmux session as the `cursor` user (default session name `cursor`). Run your agent work there; detach when you want your machine back.
-
-Everything else (`lint`, `verify`, `smoke`, …) is there for hygiene and confidence. **`task tmux`** is how this setup is meant to feel in practice: persistent shell, persistent session, laptop optional.
 
 ## Alternatives
 
