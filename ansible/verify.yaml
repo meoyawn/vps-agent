@@ -145,6 +145,30 @@
         HOME: "{{ cursor_home }}"
       changed_when: false
 
+    - name: Verify Node.js responds in cursor login shell
+      ansible.builtin.shell: |
+        set -euo pipefail
+        {{ cursor_shell }} -lic 'node --version'
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ cursor_user }}"
+      environment:
+        HOME: "{{ cursor_home }}"
+      changed_when: false
+
+    - name: Verify npm responds in cursor login shell
+      ansible.builtin.shell: |
+        set -euo pipefail
+        {{ cursor_shell }} -lic 'npm --version'
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ cursor_user }}"
+      environment:
+        HOME: "{{ cursor_home }}"
+      changed_when: false
+
     - name: Verify Task responds in cursor login shell
       ansible.builtin.shell: |
         set -euo pipefail

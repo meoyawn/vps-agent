@@ -4,9 +4,9 @@ vars:
   ANSIBLE_DIR: "ansible"
   INVENTORY: '{{default (printf "%s/inventory/hosts.yaml" .ANSIBLE_DIR) .INVENTORY}}'
   PLAYBOOK: '{{default (printf "%s/vps.yaml" .ANSIBLE_DIR) .PLAYBOOK}}'
-  UPDATE_CURSOR_AGENT_PLAYBOOK: '{{default (printf "%s/update-cursor-agent.yaml" .ANSIBLE_DIR) .UPDATE_CURSOR_AGENT_PLAYBOOK}}'
-  TARGET: '{{default "vps" .TARGET}}'
-  TMUX_SESSION: '{{default "cursor" .TMUX_SESSION}}'
+  UPDATE_CURSOR_AGENT_PLAYBOOK: "{{.ANSIBLE_DIR}}/update.yaml"
+  TARGET: vps
+  TMUX_SESSION: cursor
 
 env:
   ANSIBLE_CONFIG: "{{.ANSIBLE_DIR}}/ansible.cfg"
@@ -48,8 +48,8 @@ tasks:
     sources:
       - "{{.ANSIBLE_DIR}}/**/*"
 
-  update-cursor-agent:
-    desc: Update Cursor agent on the live VPS
+  update:
+    desc: Update packages
     cmds:
       - ansible-playbook -i {{.INVENTORY}} {{.UPDATE_CURSOR_AGENT_PLAYBOOK}} --limit {{.TARGET}}
 

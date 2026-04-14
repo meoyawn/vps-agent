@@ -1,9 +1,17 @@
 ---
-- name: Update Cursor agent on cursor hosts
+- name: Update all apt packages and Cursor agent on cursor hosts
   hosts: vps
   become: true
   gather_facts: false
   tasks:
+    - name: Update apt package indexes and upgrade installed packages
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+        autoremove: true
+        autoclean: true
+        cache_valid_time: 3600
+
     - name: Discover installed Cursor agent binary
       ansible.builtin.shell: |
         set -euo pipefail

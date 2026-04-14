@@ -20,6 +20,8 @@ cursor_packages:
   - git
   - openssh-client
   - jq
+  - nodejs
+  - npm
   - ripgrep
   - tmux
   - unzip
