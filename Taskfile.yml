@@ -1,7 +1,7 @@
 version: "3"
 
 vars:
-  ANSIBLE_DIR: "{{.ROOT_DIR}}/ansible"
+  ANSIBLE_DIR: "ansible"
   INVENTORY: '{{default (printf "%s/inventory/hosts.yaml" .ANSIBLE_DIR) .INVENTORY}}'
   PLAYBOOK: '{{default (printf "%s/vps.yaml" .ANSIBLE_DIR) .PLAYBOOK}}'
   UPDATE_CURSOR_AGENT_PLAYBOOK: '{{default (printf "%s/update-cursor-agent.yaml" .ANSIBLE_DIR) .UPDATE_CURSOR_AGENT_PLAYBOOK}}'
@@ -10,7 +10,8 @@ vars:
 
 env:
   ANSIBLE_CONFIG: "{{.ANSIBLE_DIR}}/ansible.cfg"
-  ANSIBLE_LOCAL_TEMP: "{{.ROOT_DIR}}/.ansible/tmp"
+  # FIXME why are these two even envs
+  ANSIBLE_LOCAL_TEMP: .ansible/tmp
   ANSIBLE_REMOTE_TEMP: /tmp
 
 tasks:
@@ -22,7 +23,7 @@ tasks:
     desc: Validate local prerequisites and required files
     run: once
     cmds:
-      - mkdir -p .ansible/tmp
+      - mkdir -p {{.ANSIBLE_LOCAL_TEMP}}
       - test -f "{{.INVENTORY}}"
       - ansible-playbook --version
       - task --version
@@ -35,13 +36,17 @@ tasks:
   lint:
     desc: Run ansible-lint with repo-local Ansible temp paths
     cmds:
-      - mkdir -p .ansible/tmp
+      - mkdir -p {{.ANSIBLE_LOCAL_TEMP}}
       - ansible-lint {{.ANSIBLE_DIR}}
+    sources:
+      - "{{.ANSIBLE_DIR}}/**/*"
 
   apply:
     desc: Apply the agent playbook once
     cmds:
       - ansible-playbook -i {{.INVENTORY}} {{.PLAYBOOK}} --limit {{.TARGET}}
+    sources:
+      - "{{.ANSIBLE_DIR}}/**/*"
 
   update-cursor-agent:
     desc: Update Cursor agent on the live VPS
@@ -52,11 +57,16 @@ tasks:
     desc: After apply, run playbook once more; fail if ansible-playbook output matches changed=[1-9] in recap (check-idempotence.sh)
     cmds:
       - ./scripts/check-idempotence.sh {{.INVENTORY}} {{.PLAYBOOK}} {{.TARGET}}
+    sources:
+      - "{{.ANSIBLE_DIR}}/**/*"
+      - scripts/check-idempotence.sh
 
   smoke:
     desc: Run smoke checks against the live VPS
     cmds:
       - ansible-playbook -i {{.INVENTORY}} {{.ANSIBLE_DIR}}/verify.yaml --limit {{.TARGET}}
+    sources:
+      - "{{.ANSIBLE_DIR}}/**/*"
 
   verify:
     desc: Fast real-VPS verification loop
@@ -67,6 +77,8 @@ tasks:
       - task idempotence
       - task smoke
       - echo "verification passed"
+    sources:
+      - "{{.ANSIBLE_DIR}}/**/*"
 
   ssh:
     desc: SSH to first host in TARGET using ansible_user + ansible_host from inventory (typically root; cursor user has no keys by default)
