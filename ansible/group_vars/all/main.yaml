@@ -11,6 +11,9 @@ cursor_local_bin_dir: "{{ cursor_home }}/.local/bin"
 cursor_task_binary_path: "{{ cursor_local_bin_dir }}/task"
 cursor_uv_binary_path: "{{ cursor_local_bin_dir }}/uv"
 cursor_uv_tool_dir: "{{ cursor_home }}/.local/share/uv/tools"
+cursor_volta_home: "{{ cursor_home }}/.volta"
+cursor_volta_bin_dir: "{{ cursor_volta_home }}/bin"
+cursor_volta_binary_path: "{{ cursor_volta_bin_dir }}/volta"
 cursor_profile_path: "{{ cursor_home }}/.profile"
 cursor_packages:
   - bash
@@ -20,12 +23,13 @@ cursor_packages:
   - git
   - openssh-client
   - jq
-  - nodejs
-  - npm
   - ripgrep
   - tmux
   - unzip
-cursor_path: "{{ cursor_local_bin_dir }}:{{ cursor_bun_bin_dir }}:/usr/local/bin:/usr/bin:/bin"
+uninstall_packages:
+  - nodejs
+  - npm
+cursor_path: "{{ cursor_local_bin_dir }}:{{ cursor_bun_bin_dir }}:{{ cursor_volta_bin_dir }}:/usr/local/bin:/usr/bin:/bin"
 cursor_uv_environment:
   HOME: "{{ cursor_home }}"
   PATH: "{{ cursor_path }}"
@@ -33,9 +37,12 @@ cursor_uv_environment:
   UV_TOOL_DIR: "{{ cursor_uv_tool_dir }}"
 cursor_install_url: "https://cursor.com/install"
 cursor_bun_install_url: "https://bun.sh/install"
+cursor_volta_install_url: "https://get.volta.sh"
 cursor_task_install_url: "https://taskfile.dev/install.sh"
 cursor_uv_tools:
   - ast-grep-cli
+global_npm_packages:
+  - happy
 cursor_scc_download_url: "https://github.com/boyter/scc/releases/latest/download/scc_Linux_arm64.tar.gz"
 cursor_github_ssh_dir: "{{ cursor_home }}/.ssh"
 cursor_github_ssh_private_key_path: "{{ cursor_github_ssh_dir }}/id_github_vps_ed25519"
