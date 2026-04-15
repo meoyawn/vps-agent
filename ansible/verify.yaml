@@ -169,21 +169,6 @@
         HOME: "{{ cursor_home }}"
       changed_when: false
 
-    - name: Verify global npm packages are on PATH in cursor login shell
-      ansible.builtin.shell: |
-        set -euo pipefail
-        {{ cursor_shell }} -lic 'command -v {{ item }}'
-      args:
-        executable: /bin/bash
-      become: true
-      become_user: "{{ cursor_user }}"
-      environment:
-        HOME: "{{ cursor_home }}"
-      changed_when: false
-      loop: "{{ global_npm_packages }}"
-      loop_control:
-        label: "{{ item }}"
-
     - name: Verify Task responds in cursor login shell
       ansible.builtin.shell: |
         set -euo pipefail

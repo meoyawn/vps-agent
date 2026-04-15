@@ -186,30 +186,6 @@
           register: cursor_cli_install
           changed_when: "'__CURSOR_CLI_CHANGED__' in cursor_cli_install.stdout_lines"
 
-        - name: Check global npm package shims for cursor user
-          ansible.builtin.stat:
-            path: "{{ cursor_volta_bin_dir }}/{{ item }}"
-          register: cursor_global_npm_package_shims
-          loop: "{{ global_npm_packages }}"
-          loop_control:
-            label: "{{ item }}"
-
-        - name: Install missing global npm packages for cursor user
-          ansible.builtin.command:
-            argv:
-              - "{{ cursor_volta_bin_dir }}/npm"
-              - install
-              - --global
-              - "{{ item.item }}"
-          environment:
-            HOME: "{{ cursor_home }}"
-            PATH: "{{ cursor_path }}"
-            VOLTA_HOME: "{{ cursor_volta_home }}"
-          loop: "{{ cursor_global_npm_package_shims.results }}"
-          loop_control:
-            label: "{{ item.item }}"
-          when: not item.stat.exists
-
         - name: Ensure cursor .ssh directory exists
           ansible.builtin.file:
             path: "{{ cursor_github_ssh_dir }}"
