@@ -9,9 +9,26 @@ if status is-interactive
     alias gp        'git push'
     alias gco       'git checkout'
     alias gcm       'git checkout master'
+    alias ggpull    'git pull origin (git branch --show-current)'
 
-    function ggpull --description 'Pull current branch from origin' --wraps 'git pull'
-        git pull origin (git branch --show-current) $argv
+    function getip --description 'Show external IP inside and outside Russia'
+        "$HOME/.config/fish/getip.ts" $argv
+    end
+
+    function commit --description 'Use Cursor Agent to stage and commit all changes'
+        set -l prompt '
+        1. Read `git diff`.
+        2. Run `git add -A`.
+        3. Run `git commit` with a concise and precise message derived from the diff.
+
+        Do not ask follow-up questions.
+        Complete the steps in order.
+
+        If `git diff` is empty, say so and stop.
+        '
+
+        echo 'Launching Cursor Agent...'
+        agent --print --output-format text --yolo --trust --model composer-2-fast $prompt
     end
 end
 
