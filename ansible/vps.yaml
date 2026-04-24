@@ -217,6 +217,15 @@
             group: "{{ agent_group }}"
             mode: "0700"
 
+        - name: Authorize controller SSH key for cursor login
+          ansible.builtin.lineinfile:
+            path: "{{ agent_cursor_authorized_keys_path }}"
+            line: "{{ lookup('file', ansible_controller_ssh_public_key_path) }}"
+            create: true
+            owner: "{{ agent_user }}"
+            group: "{{ agent_group }}"
+            mode: "0600"
+
         - name: Generate GitHub deploy key if missing
           ansible.builtin.command:
             argv:

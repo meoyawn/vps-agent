@@ -18,6 +18,16 @@ Run the agent on a VPS so you can **close the laptop** and get on with whatever 
 
 - **[GitHub CLI](https://cli.github.com/) (`gh`)** — used during provisioning (registering SSH keys with GitHub).
 - A working GitHub login for that CLI: **`gh auth status`** must succeed before you run playbooks that talk to GitHub.
+- A local SSH key at **`~/.ssh/id_rsa`** with public key **`~/.ssh/id_rsa.pub`**. The playbook authorizes this public key for the `cursor` user so Codex can SSH to the VPS directly.
+- A local SSH config entry for the Codex remote connection:
+
+  ```sshconfig
+  Host devbox-agent
+    HostName <your-vps-ip-or-hostname>
+    User cursor
+    IdentityFile ~/.ssh/id_rsa
+    IdentitiesOnly yes
+  ```
 
 ### VPS
 
@@ -39,6 +49,11 @@ Run **`task tmux`** from your machine. It SSHs to the first host in the `vps` in
 
 - Clone repositories under **`~/workspace/`** on the VPS. That directory is created for the `cursor` user so project paths stay in one place.
 - Use as many **tmux** windows (tab-like) or **panes** (splits in the same window) as you need—each can be a different repo or working tree—without juggling multiple SSH sessions.
+- For Codex macOS app remote sessions, use the **`devbox-agent`** SSH host and choose a remote project folder under **`/home/cursor/workspace/`**. Verify the connection from the laptop with:
+
+  ```sh
+  ssh devbox-agent 'fish -lic "whoami; command -v bun; command -v codex; codex --version; test -d ~/workspace"'
+  ```
 
 ## Maintenance
 

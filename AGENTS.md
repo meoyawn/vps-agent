@@ -10,6 +10,7 @@
 - never change `Taskfile.yml` without running `task check`
 - never use `pip`, use `uv`
 - never use `bash` in Markdown code blocks, use `sh` instead
+- never leak IPs or secrets in git history, this repo is open source
 
 ## Project vocabulary
 
