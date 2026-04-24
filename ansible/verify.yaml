@@ -50,6 +50,13 @@
           - --version
       changed_when: false
 
+    - name: Verify mosh-server is installed
+      ansible.builtin.command:
+        argv:
+          - mosh-server
+          - --version
+      changed_when: false
+
     - name: Read ufw default incoming policy
       ansible.builtin.command:
         argv:
