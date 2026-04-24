@@ -1,5 +1,5 @@
 ---
-- name: Update all apt packages and Cursor agent on cursor hosts
+- name: Update apt packages, Cursor agent, and Bun globals on cursor hosts
   hosts: vps
   become: true
   gather_facts: false
@@ -12,87 +12,60 @@
         autoclean: true
         cache_valid_time: 3600
 
-    - name: Discover installed Cursor agent binary
-      ansible.builtin.shell: |
-        set -euo pipefail
-        export HOME="{{ agent_home }}"
-        export PATH="{{ agent_path }}"
-        if command -v agent >/dev/null 2>&1; then
-          command -v agent
-        else
-          command -v cursor-agent
-        fi
-      args:
-        executable: /bin/bash
+    - name: Update Cursor agent
       become: true
       become_user: "{{ agent_user }}"
       environment:
         HOME: "{{ agent_home }}"
         PATH: "{{ agent_path }}"
-      register: cursor_binary
-      changed_when: false
+      block:
+        - name: Discover installed Cursor agent binary
+          ansible.builtin.shell: |
+            set -euo pipefail
+            if command -v agent >/dev/null 2>&1; then
+              command -v agent
+            else
+              command -v cursor-agent
+            fi
+          args:
+            executable: /bin/bash
+          register: cursor_binary
+          changed_when: false
 
-    - name: Capture current Cursor agent version
+        - name: Update Cursor agent to the latest available version
+          ansible.builtin.command:
+            argv:
+              - "{{ cursor_binary.stdout }}"
+              - update
+          changed_when: false
+
+        - name: Capture effective Cursor agent binary path after update
+          ansible.builtin.command:
+            argv:
+              - readlink
+              - -f
+              - "{{ cursor_binary.stdout }}"
+          register: cursor_binary_path_after
+          changed_when: false
+
+        - name: Assert Cursor agent resolves to a versioned install path
+          ansible.builtin.assert:
+            that:
+              - (cursor_binary_path_after.stdout | trim) is match(".*/cursor-agent/versions/.+/cursor-agent$")
+            fail_msg: >-
+              expected Cursor agent to resolve to a versioned install path, got
+              {{ cursor_binary_path_after.stdout | trim }}
+
+    - name: Update Bun global packages for cursor user
       ansible.builtin.command:
         argv:
-          - "{{ cursor_binary.stdout }}"
-          - --version
-      become: true
-      become_user: "{{ agent_user }}"
-      environment:
-        HOME: "{{ agent_home }}"
-        PATH: "{{ agent_path }}"
-      register: cursor_version_before
-      changed_when: false
-
-    - name: Capture current Cursor agent binary path
-      ansible.builtin.command:
-        argv:
-          - readlink
-          - -f
-          - "{{ cursor_binary.stdout }}"
-      register: cursor_binary_path_before
-      changed_when: false
-
-    - name: Update Cursor agent to the latest available version
-      ansible.builtin.command:
-        argv:
-          - "{{ cursor_binary.stdout }}"
+          - "{{ agent_bun_binary_path }}"
           - update
+          - --global
+          - --latest
       become: true
       become_user: "{{ agent_user }}"
       environment:
         HOME: "{{ agent_home }}"
         PATH: "{{ agent_path }}"
-      register: cursor_update
       changed_when: false
-
-    - name: Capture effective Cursor agent version after update
-      ansible.builtin.command:
-        argv:
-          - "{{ cursor_binary.stdout }}"
-          - --version
-      become: true
-      become_user: "{{ agent_user }}"
-      environment:
-        HOME: "{{ agent_home }}"
-        PATH: "{{ agent_path }}"
-      register: cursor_version_after
-      changed_when: false
-
-    - name: Capture effective Cursor agent binary path after update
-      ansible.builtin.command:
-        argv:
-          - readlink
-          - -f
-          - "{{ cursor_binary.stdout }}"
-      register: cursor_binary_path_after
-      changed_when: false
-
-    - name: Assert Cursor agent resolves to a versioned install path
-      ansible.builtin.assert:
-        that:
-          - (cursor_binary_path_after.stdout | trim) is match(".*/cursor-agent/versions/.+/cursor-agent$")
-        fail_msg: >-
-          expected Cursor agent to resolve to a versioned install path, got
-          {{ cursor_binary_path_after.stdout | trim }}

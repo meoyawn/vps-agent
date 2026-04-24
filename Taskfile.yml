@@ -76,6 +76,7 @@ tasks:
       - echo "verification passed"
     sources:
       - "{{.ANSIBLE_DIR}}/**/*"
+      - exclude: "{{.ANSIBLE_DIR}}/update.yaml"
 
   ssh:
     desc: SSH to first host in TARGET using ansible_user + ansible_host from inventory (typically root; cursor user has no keys by default)
