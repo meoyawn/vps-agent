@@ -80,15 +80,45 @@
       become: true
       become_user: "{{ agent_user }}"
       block:
-        - name: Install Bun for cursor user
-          ansible.builtin.shell: |
-            set -euo pipefail
-            curl -fsSL "{{ agent_bun_install_url }}" | bash
-          args:
-            executable: /bin/bash
-            creates: "{{ agent_bun_binary_path }}"
-          environment:
-            HOME: "{{ agent_home }}"
+        - name: Manage Bun tooling for cursor user
+          block:
+            - name: Install Bun for cursor user
+              ansible.builtin.shell: |
+                set -euo pipefail
+                curl -fsSL "{{ agent_bun_install_url }}" | bash
+              args:
+                executable: /bin/bash
+                creates: "{{ agent_bun_binary_path }}"
+              environment:
+                HOME: "{{ agent_home }}"
+
+            - name: List Bun global packages for cursor user
+              ansible.builtin.command:
+                argv:
+                  - "{{ agent_bun_binary_path }}"
+                  - -g
+                  - list
+              environment:
+                HOME: "{{ agent_home }}"
+                PATH: "{{ agent_path }}"
+              register: cursor_bun_global_packages
+              changed_when: false
+
+            - name: Install Bun global packages for cursor user
+              ansible.builtin.command:
+                argv:
+                  - "{{ agent_bun_binary_path }}"
+                  - i
+                  - -g
+                  - "{{ item }}"
+              environment:
+                HOME: "{{ agent_home }}"
+                PATH: "{{ agent_path }}"
+              loop: "{{ agent_bun_global_packages }}"
+              when: >-
+                cursor_bun_global_packages.stdout is not regex(
+                  '(^|\\n|\\s)' ~ (item | regex_escape) ~ '(@|\\s|$)'
+                )
 
         - name: Install Volta for cursor user
           ansible.builtin.shell: |

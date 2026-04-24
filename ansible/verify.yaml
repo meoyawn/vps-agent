@@ -191,6 +191,41 @@
         HOME: "{{ agent_home }}"
       changed_when: false
 
+    - name: List Bun global packages for cursor user
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_bun_binary_path }}"
+          - -g
+          - list
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
+      register: cursor_bun_global_packages
+      changed_when: false
+
+    - name: Assert Bun global packages installed for cursor user
+      ansible.builtin.assert:
+        that:
+          - cursor_bun_global_packages.stdout is regex('(^|\\n|\\s)' ~ (item | regex_escape) ~ '(@|\\s|$)')
+        fail_msg: >-
+          expected Bun global package {{ item }} in bun -g list output;
+          got {{ cursor_bun_global_packages.stdout | default('') }}
+      loop: "{{ agent_bun_global_packages }}"
+
+    - name: Verify Codex responds for cursor user
+      ansible.builtin.command:
+        argv:
+          - codex
+          - --version
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
+      changed_when: false
+
     - name: Verify Node.js responds in cursor login shell
       ansible.builtin.shell: |
         set -euo pipefail
