@@ -130,7 +130,7 @@
         - name: Install uv for cursor user
           ansible.builtin.shell: |
             set -euo pipefail
-            curl -fsSL https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL="{{ agent_local_bin_dir }}" sh
+            curl -fsSL "{{ agent_uv_install_url }}" | env UV_UNMANAGED_INSTALL="{{ agent_local_bin_dir }}" sh
           args:
             executable: /bin/bash
             creates: "{{ agent_uv_binary_path }}"

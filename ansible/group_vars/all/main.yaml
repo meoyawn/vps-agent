@@ -9,11 +9,21 @@ agent_bun_bin_dir: "{{ agent_bun_install_root }}/bin"
 agent_bun_binary_path: "{{ agent_bun_bin_dir }}/bun"
 agent_local_bin_dir: "{{ agent_home }}/.local/bin"
 agent_task_binary_path: "{{ agent_local_bin_dir }}/task"
+
+agent_uv_install_url: "https://astral.sh/uv/install.sh"
 agent_uv_binary_path: "{{ agent_local_bin_dir }}/uv"
 agent_uv_tool_dir: "{{ agent_home }}/.local/share/uv/tools"
+agent_uv_environment:
+  HOME: "{{ agent_home }}"
+  PATH: "{{ agent_path }}"
+  UV_TOOL_BIN_DIR: "{{ agent_local_bin_dir }}"
+  UV_TOOL_DIR: "{{ agent_uv_tool_dir }}"
+
+agent_volta_install_url: "https://get.volta.sh"
 agent_volta_home: "{{ agent_home }}/.volta"
 agent_volta_bin_dir: "{{ agent_volta_home }}/bin"
 agent_volta_binary_path: "{{ agent_volta_bin_dir }}/volta"
+
 agent_profile_path: "{{ agent_home }}/.profile"
 agent_packages:
   - bash
@@ -30,16 +40,11 @@ uninstall_packages:
   - nodejs
   - npm
 agent_path: "{{ agent_local_bin_dir }}:{{ agent_bun_bin_dir }}:{{ agent_volta_bin_dir }}:/usr/local/bin:/usr/bin:/bin"
-agent_uv_environment:
-  HOME: "{{ agent_home }}"
-  PATH: "{{ agent_path }}"
-  UV_TOOL_BIN_DIR: "{{ agent_local_bin_dir }}"
-  UV_TOOL_DIR: "{{ agent_uv_tool_dir }}"
+
 agent_install_url: "https://cursor.com/install"
 agent_bun_install_url: "https://bun.sh/install"
-agent_volta_install_url: "https://get.volta.sh"
-agent_task_install_url: "https://taskfile.dev/install.sh"
 
+agent_task_install_url: "https://taskfile.dev/install.sh"
 agent_scc_download_url: "https://github.com/boyter/scc/releases/latest/download/scc_Linux_arm64.tar.gz"
 agent_github_ssh_dir: "{{ agent_home }}/.ssh"
 agent_github_ssh_private_key_path: "{{ agent_github_ssh_dir }}/id_github_vps_ed25519"
