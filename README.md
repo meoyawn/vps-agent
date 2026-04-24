@@ -2,7 +2,7 @@
 
 Run the agent on a VPS so you can **close the laptop** and get on with whatever else you are doing.
 
-**vps-agent** is the Ansible side of that: provision an Ubuntu VPS with [Cursor Agent CLI](https://cursor.com/blog/cli) and a persistent shell session you can leave attached remotely.
+**vps-agent** provisions an Ubuntu VPS for agent work, focused on [Codex remote connections](https://developers.openai.com/codex/remote-connections). It also sets up a persistent **tmux** shell and [Cursor Agent CLI](https://cursor.com/blog/cli).
 
 ## Prerequisites
 
@@ -45,15 +45,17 @@ Run the agent on a VPS so you can **close the laptop** and get on with whatever 
 
 ## Workflow
 
-Run **`task tmux`** from your machine. It SSHs to the first host in the `vps` inventory group and attaches to a **tmux** session as the `cursor` user (default session name `cursor`), creating it if missing. Do agent work inside that session; detach when you want your laptop back—the shell and session stay on the VPS.
+For Codex remote sessions, use the **`devbox-agent`** SSH host and choose a remote project folder under **`/home/cursor/workspace/`**. Verify the connection from the laptop with:
+
+```sh
+ssh devbox-agent 'fish -lic "whoami; command -v bun; command -v codex; codex --version; test -d ~/workspace"'
+```
+
+For shell sessions, run **`task tmux`** from your machine. It SSHs to the first host in the `vps` inventory group and attaches to a **tmux** session as the `cursor` user (default session name `cursor`), creating it if missing.
 
 - Clone repositories under **`~/workspace/`** on the VPS. That directory is created for the `cursor` user so project paths stay in one place.
 - Use as many **tmux** windows (tab-like) or **panes** (splits in the same window) as you need—each can be a different repo or working tree—without juggling multiple SSH sessions.
-- For Codex macOS app remote sessions, use the **`devbox-agent`** SSH host and choose a remote project folder under **`/home/cursor/workspace/`**. Verify the connection from the laptop with:
-
-  ```sh
-  ssh devbox-agent 'fish -lic "whoami; command -v bun; command -v codex; codex --version; test -d ~/workspace"'
-  ```
+- Cursor Agent CLI is installed for users who still want `agent` on the VPS.
 
 ## Maintenance
 
