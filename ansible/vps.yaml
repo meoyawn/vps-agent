@@ -44,6 +44,23 @@
             group: "{{ agent_group }}"
             mode: "0755"
 
+        - name: Ensure cursor .ssh directory exists
+          ansible.builtin.file:
+            path: "{{ agent_github_ssh_dir }}"
+            state: directory
+            owner: "{{ agent_user }}"
+            group: "{{ agent_group }}"
+            mode: "0700"
+
+        - name: Authorize controller SSH key for cursor login
+          ansible.builtin.lineinfile:
+            path: "{{ agent_cursor_authorized_keys_path }}"
+            line: "{{ lookup('file', ansible_controller_ssh_public_key_path) }}"
+            create: true
+            owner: "{{ agent_user }}"
+            group: "{{ agent_group }}"
+            mode: "0600"
+
         - name: Allow unconfined user namespaces for Codex sandbox on Ubuntu 24.04
           ansible.builtin.copy:
             dest: /etc/sysctl.d/60-codex-userns.conf
@@ -71,6 +88,14 @@
           args:
             executable: /bin/bash
             creates: /usr/local/bin/scc
+
+    - name: Apply sshd hardening
+      ansible.builtin.import_role:
+        name: sshd
+
+    - name: Apply terminal compatibility
+      ansible.builtin.import_role:
+        name: terminal
 
     - name: Apply fish configuration
       ansible.builtin.import_role:
@@ -208,23 +233,6 @@
             HOME: "{{ agent_home }}"
           register: cursor_cli_install
           changed_when: "'__CURSOR_CLI_CHANGED__' in cursor_cli_install.stdout_lines"
-
-        - name: Ensure cursor .ssh directory exists
-          ansible.builtin.file:
-            path: "{{ agent_github_ssh_dir }}"
-            state: directory
-            owner: "{{ agent_user }}"
-            group: "{{ agent_group }}"
-            mode: "0700"
-
-        - name: Authorize controller SSH key for cursor login
-          ansible.builtin.lineinfile:
-            path: "{{ agent_cursor_authorized_keys_path }}"
-            line: "{{ lookup('file', ansible_controller_ssh_public_key_path) }}"
-            create: true
-            owner: "{{ agent_user }}"
-            group: "{{ agent_group }}"
-            mode: "0600"
 
         - name: Generate GitHub deploy key if missing
           ansible.builtin.command:

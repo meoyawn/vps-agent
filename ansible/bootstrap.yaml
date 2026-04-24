@@ -26,48 +26,8 @@
     - name: Install bootstrap packages
       ansible.builtin.apt:
         name:
-          - ncurses-bin
           - ufw
         state: present
-
-    - name: Ensure Ghostty terminfo source directory exists
-      ansible.builtin.file:
-        path: /usr/local/share/ghostty
-        state: directory
-        owner: root
-        group: root
-        mode: "0755"
-
-    - name: Install Ghostty terminfo source
-      ansible.builtin.copy:
-        src: files/xterm-ghostty.terminfo
-        dest: /usr/local/share/ghostty/xterm-ghostty.terminfo
-        owner: root
-        group: root
-        mode: "0644"
-      register: ghostty_terminfo_source
-
-    - name: Check whether Ghostty terminfo is already installed
-      ansible.builtin.command:
-        argv:
-          - infocmp
-          - -A
-          - /usr/share/terminfo
-          - -x
-          - xterm-ghostty
-      register: ghostty_terminfo_probe
-      changed_when: false
-      failed_when: false
-
-    - name: Install Ghostty terminfo entry
-      ansible.builtin.command:
-        argv:
-          - tic
-          - -x
-          - -o
-          - /usr/share/terminfo
-          - /usr/local/share/ghostty/xterm-ghostty.terminfo
-      when: ghostty_terminfo_source.changed or ghostty_terminfo_probe.rc != 0
 
     - name: Deny incoming traffic by default
       ansible.builtin.lineinfile:

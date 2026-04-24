@@ -164,6 +164,85 @@
       failed_when: cursor_authorized_key_check.changed
       changed_when: false
 
+    - name: Validate sshd configuration
+      ansible.builtin.command:
+        argv:
+          - sshd
+          - -t
+      changed_when: false
+
+    - name: Read effective sshd configuration
+      ansible.builtin.command:
+        argv:
+          - sshd
+          - -T
+      register: sshd_effective_config
+      changed_when: false
+
+    - name: Assert sshd hardening is effective
+      ansible.builtin.assert:
+        that:
+          - "'passwordauthentication no' in sshd_effective_config.stdout_lines"
+          - "'kbdinteractiveauthentication no' in sshd_effective_config.stdout_lines"
+          - "'pubkeyauthentication yes' in sshd_effective_config.stdout_lines"
+          - "'authenticationmethods publickey' in sshd_effective_config.stdout_lines"
+          - >-
+            'permitrootlogin prohibit-password' in sshd_effective_config.stdout_lines or
+            'permitrootlogin without-password' in sshd_effective_config.stdout_lines
+          - "'maxauthtries 3' in sshd_effective_config.stdout_lines"
+          - "'logingracetime 20' in sshd_effective_config.stdout_lines"
+        fail_msg: >-
+          expected sshd effective config to enforce key-only hardening;
+          got {{ sshd_effective_config.stdout_lines | default([]) }}
+
+    - name: Verify ssh.service status
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - status
+          - ssh.service
+          - --no-pager
+      changed_when: false
+
+    - name: Verify Ghostty terminfo is installed
+      ansible.builtin.command:
+        argv:
+          - infocmp
+          - -A
+          - /usr/share/terminfo
+          - -x
+          - xterm-ghostty
+      changed_when: false
+
+    - name: Verify tmux wrapper is first on PATH
+      ansible.builtin.command:
+        argv:
+          - which
+          - tmux
+      register: tmux_command_path
+      changed_when: false
+
+    - name: Assert tmux wrapper path
+      ansible.builtin.assert:
+        that:
+          - tmux_command_path.stdout == '/usr/local/bin/tmux'
+        fail_msg: "expected tmux wrapper at /usr/local/bin/tmux, got {{ tmux_command_path.stdout }}"
+
+    - name: Verify tmux starts when TERM is unset
+      ansible.builtin.command:
+        argv:
+          - script
+          - -q
+          - -e
+          - -c
+          - env -u TERM tmux -L vps-agent-term-verify new-session -s vps-agent-term-verify true
+          - /dev/null
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      changed_when: false
+
     - name: Verify gh has no persistent login on VPS
       ansible.builtin.command:
         argv:

@@ -1,0 +1,7 @@
+---
+terminal_ghostty_terminfo_source: xterm-ghostty.terminfo
+terminal_ghostty_terminfo_dest: /usr/local/share/ghostty/xterm-ghostty.terminfo
+terminal_terminfo_dir: /usr/share/terminfo
+terminal_tmux_wrapper_path: /usr/local/bin/tmux
+terminal_tmux_binary_path: /usr/bin/tmux
+terminal_fallback_term: xterm-256color

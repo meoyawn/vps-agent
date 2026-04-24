@@ -1,0 +1,22 @@
+---
+- name: Install openssh-server
+  ansible.builtin.apt:
+    name: "{{ sshd_hardening_package }}"
+    state: present
+
+- name: Ensure sshd_config.d exists
+  ansible.builtin.file:
+    path: "{{ sshd_hardening_config_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Render sshd hardening drop-in
+  ansible.builtin.template:
+    src: hardening.conf.j2
+    dest: "{{ sshd_hardening_config_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Validate sshd and reload ssh

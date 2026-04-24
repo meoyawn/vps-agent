@@ -1,0 +1,4 @@
+---
+- name: Validate sshd and reload ssh
+  become: true
+  ansible.builtin.import_tasks: reload.yaml

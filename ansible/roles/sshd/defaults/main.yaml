@@ -1,0 +1,21 @@
+---
+sshd_hardening_package: openssh-server
+sshd_hardening_config_path: /etc/ssh/sshd_config.d/60-vps-agent-hardening.conf
+sshd_service_name: ssh.service
+sshd_hardening_directives:
+  - keyword: PasswordAuthentication
+    value: "no"
+  - keyword: KbdInteractiveAuthentication
+    value: "no"
+  - keyword: ChallengeResponseAuthentication
+    value: "no"
+  - keyword: PubkeyAuthentication
+    value: "yes"
+  - keyword: AuthenticationMethods
+    value: publickey
+  - keyword: PermitRootLogin
+    value: prohibit-password
+  - keyword: MaxAuthTries
+    value: "3"
+  - keyword: LoginGraceTime
+    value: "20"

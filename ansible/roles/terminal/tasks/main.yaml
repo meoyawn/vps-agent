@@ -1,0 +1,54 @@
+---
+- name: Install terminal support packages
+  ansible.builtin.apt:
+    name:
+      - ncurses-bin
+      - tmux
+    state: present
+
+- name: Ensure Ghostty terminfo source directory exists
+  ansible.builtin.file:
+    path: "{{ terminal_ghostty_terminfo_dest | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Ghostty terminfo source
+  ansible.builtin.copy:
+    src: "{{ terminal_ghostty_terminfo_source }}"
+    dest: "{{ terminal_ghostty_terminfo_dest }}"
+    owner: root
+    group: root
+    mode: "0644"
+  register: terminal_ghostty_terminfo_source_copy
+
+- name: Check whether Ghostty terminfo is installed
+  ansible.builtin.command:
+    argv:
+      - infocmp
+      - -A
+      - "{{ terminal_terminfo_dir }}"
+      - -x
+      - xterm-ghostty
+  register: terminal_ghostty_terminfo_probe
+  changed_when: false
+  failed_when: false
+
+- name: Install Ghostty terminfo entry
+  ansible.builtin.command:
+    argv:
+      - tic
+      - -x
+      - -o
+      - "{{ terminal_terminfo_dir }}"
+      - "{{ terminal_ghostty_terminfo_dest }}"
+  when: terminal_ghostty_terminfo_source_copy.changed or terminal_ghostty_terminfo_probe.rc != 0
+
+- name: Install tmux TERM fallback wrapper
+  ansible.builtin.copy:
+    src: tmux
+    dest: "{{ terminal_tmux_wrapper_path }}"
+    owner: root
+    group: root
+    mode: "0755"

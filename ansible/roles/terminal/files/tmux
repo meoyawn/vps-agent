@@ -1,0 +1,7 @@
+#!/bin/sh
+if [ -z "${TERM:-}" ] || [ "$TERM" = "dumb" ]; then
+    TERM="xterm-256color"
+    export TERM
+fi
+
+exec /usr/bin/tmux "$@"
