@@ -43,6 +43,52 @@
           - "{{ agent_workspace_root }}"
       changed_when: false
 
+    - name: Read AppArmor unprivileged unconfined restriction
+      ansible.builtin.command:
+        argv:
+          - sysctl
+          - -n
+          - kernel.apparmor_restrict_unprivileged_unconfined
+      register: apparmor_restrict_unprivileged_unconfined
+      changed_when: false
+
+    - name: Assert AppArmor unprivileged unconfined restriction disabled
+      ansible.builtin.assert:
+        that:
+          - apparmor_restrict_unprivileged_unconfined.stdout == '0'
+        fail_msg: >-
+          expected kernel.apparmor_restrict_unprivileged_unconfined=0;
+          got {{ apparmor_restrict_unprivileged_unconfined.stdout | default('missing') }}
+
+    - name: Read AppArmor unprivileged user namespace restriction
+      ansible.builtin.command:
+        argv:
+          - sysctl
+          - -n
+          - kernel.apparmor_restrict_unprivileged_userns
+      register: apparmor_restrict_unprivileged_userns
+      changed_when: false
+
+    - name: Assert AppArmor unprivileged user namespace restriction disabled
+      ansible.builtin.assert:
+        that:
+          - apparmor_restrict_unprivileged_userns.stdout == '0'
+        fail_msg: >-
+          expected kernel.apparmor_restrict_unprivileged_userns=0;
+          got {{ apparmor_restrict_unprivileged_userns.stdout | default('missing') }}
+
+    - name: Verify cursor can create user namespaces
+      ansible.builtin.command:
+        argv:
+          - unshare
+          - -Ur
+          - "true"
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      changed_when: false
+
     - name: Probe GitHub SSH (git@github.com)
       ansible.builtin.command:
         argv:

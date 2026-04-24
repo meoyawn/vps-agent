@@ -4,9 +4,14 @@ agent_group: cursor
 agent_home: "/home/{{ agent_user }}"
 agent_shell: /usr/bin/fish
 agent_workspace_root: "{{ agent_home }}/workspace"
+
+agent_bun_install_url: "https://bun.sh/install"
 agent_bun_install_root: "{{ agent_home }}/.bun"
 agent_bun_bin_dir: "{{ agent_bun_install_root }}/bin"
 agent_bun_binary_path: "{{ agent_bun_bin_dir }}/bun"
+agent_bun_global_packages:
+  - "@openai/codex"
+
 agent_local_bin_dir: "{{ agent_home }}/.local/bin"
 agent_task_binary_path: "{{ agent_local_bin_dir }}/task"
 
@@ -19,6 +24,7 @@ agent_uv_environment:
   UV_TOOL_BIN_DIR: "{{ agent_local_bin_dir }}"
   UV_TOOL_DIR: "{{ agent_uv_tool_dir }}"
 
+# questionable stuff, using bun -g for now
 agent_volta_install_url: "https://get.volta.sh"
 agent_volta_home: "{{ agent_home }}/.volta"
 agent_volta_bin_dir: "{{ agent_volta_home }}/bin"
@@ -27,6 +33,7 @@ agent_volta_binary_path: "{{ agent_volta_bin_dir }}/volta"
 agent_profile_path: "{{ agent_home }}/.profile"
 agent_packages:
   - bash
+  - bubblewrap
   - ca-certificates
   - curl
   - gh
@@ -42,7 +49,6 @@ uninstall_packages:
 agent_path: "{{ agent_local_bin_dir }}:{{ agent_bun_bin_dir }}:{{ agent_volta_bin_dir }}:/usr/local/bin:/usr/bin:/bin"
 
 agent_install_url: "https://cursor.com/install"
-agent_bun_install_url: "https://bun.sh/install"
 
 agent_task_install_url: "https://taskfile.dev/install.sh"
 agent_scc_download_url: "https://github.com/boyter/scc/releases/latest/download/scc_Linux_arm64.tar.gz"

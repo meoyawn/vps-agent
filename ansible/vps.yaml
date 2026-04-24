@@ -44,6 +44,22 @@
             group: "{{ agent_group }}"
             mode: "0755"
 
+        - name: Allow unconfined user namespaces for Codex sandbox on Ubuntu 24.04
+          ansible.builtin.copy:
+            dest: /etc/sysctl.d/60-codex-userns.conf
+            mode: "0644"
+            content: |
+              kernel.apparmor_restrict_unprivileged_unconfined = 0
+              kernel.apparmor_restrict_unprivileged_userns = 0
+          register: codex_userns_sysctl
+
+        - name: Reload sysctl after Codex user namespace changes
+          ansible.builtin.command:
+            argv:
+              - sysctl
+              - --system
+          when: codex_userns_sysctl.changed
+
         - name: Install scc
           ansible.builtin.shell: |
             set -euo pipefail
