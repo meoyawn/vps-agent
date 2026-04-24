@@ -15,9 +15,7 @@ env:
   ANSIBLE_REMOTE_TEMP: /tmp
 
 tasks:
-  default:
-    cmds:
-      - task --list
+  codex: bunx @openai/codex --yolo
 
   check:
     desc: Validate local prerequisites and required files
