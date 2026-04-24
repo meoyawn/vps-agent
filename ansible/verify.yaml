@@ -43,6 +43,67 @@
           - "{{ agent_workspace_root }}"
       changed_when: false
 
+    - name: Verify ufw is installed
+      ansible.builtin.command:
+        argv:
+          - ufw
+          - --version
+      changed_when: false
+
+    - name: Read ufw default incoming policy
+      ansible.builtin.command:
+        argv:
+          - awk
+          - -F=
+          - /^DEFAULT_INPUT_POLICY=/{gsub(/"/, "", $2); print $2}
+          - /etc/default/ufw
+      register: ufw_default_input_policy
+      changed_when: false
+
+    - name: Assert ufw default incoming policy drops traffic
+      ansible.builtin.assert:
+        that:
+          - ufw_default_input_policy.stdout == 'DROP'
+        fail_msg: >-
+          expected DEFAULT_INPUT_POLICY=DROP;
+          got {{ ufw_default_input_policy.stdout | default('missing') }}
+
+    - name: Read ufw default outgoing policy
+      ansible.builtin.command:
+        argv:
+          - awk
+          - -F=
+          - /^DEFAULT_OUTPUT_POLICY=/{gsub(/"/, "", $2); print $2}
+          - /etc/default/ufw
+      register: ufw_default_output_policy
+      changed_when: false
+
+    - name: Assert ufw default outgoing policy accepts traffic
+      ansible.builtin.assert:
+        that:
+          - ufw_default_output_policy.stdout == 'ACCEPT'
+        fail_msg: >-
+          expected DEFAULT_OUTPUT_POLICY=ACCEPT;
+          got {{ ufw_default_output_policy.stdout | default('missing') }}
+
+    - name: Read ufw status
+      ansible.builtin.command:
+        argv:
+          - ufw
+          - status
+      register: ufw_status
+      changed_when: false
+
+    - name: Assert ufw policy is active
+      ansible.builtin.assert:
+        that:
+          - "'Status: active' in ufw_status.stdout"
+          - "'22/tcp' in ufw_status.stdout"
+          - "'60000:61000/udp' in ufw_status.stdout"
+        fail_msg: >-
+          expected active ufw with SSH and Mosh UDP rules;
+          got {{ ufw_status.stdout_lines | default([]) }}
+
     - name: Read AppArmor unprivileged unconfined restriction
       ansible.builtin.command:
         argv:

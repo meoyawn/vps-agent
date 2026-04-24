@@ -1,18 +1,8 @@
 ---
-- name: Bootstrap VPS base packages and firewall
+- name: Bootstrap VPS base packages
   hosts: vps
   become: true
   gather_facts: false
-  handlers:
-    - name: Reload ufw if active
-      ansible.builtin.shell: |
-        set -euo pipefail
-        if ufw status | grep -q "^Status: active$"; then
-          ufw --force reload
-        fi
-      args:
-        executable: /bin/bash
-      changed_when: false
 
   tasks:
     - name: Refresh apt cache and upgrade installed packages
@@ -22,47 +12,3 @@
         upgrade: dist
         autoremove: true
         autoclean: true
-
-    - name: Install bootstrap packages
-      ansible.builtin.apt:
-        name:
-          - ufw
-        state: present
-
-    - name: Deny incoming traffic by default
-      ansible.builtin.lineinfile:
-        path: /etc/default/ufw
-        regexp: "^DEFAULT_INPUT_POLICY="
-        line: 'DEFAULT_INPUT_POLICY="DROP"'
-      notify: Reload ufw if active
-
-    - name: Allow outgoing traffic by default
-      ansible.builtin.lineinfile:
-        path: /etc/default/ufw
-        regexp: "^DEFAULT_OUTPUT_POLICY="
-        line: 'DEFAULT_OUTPUT_POLICY="ACCEPT"'
-      notify: Reload ufw if active
-
-    - name: Allow SSH through ufw
-      ansible.builtin.shell: |
-        set -euo pipefail
-        if ufw status | grep -qE '^22/tcp'; then
-          exit 0
-        fi
-        ufw allow 22/tcp comment 'SSH'
-      args:
-        executable: /bin/bash
-      register: ufw_allow_ssh
-      changed_when: ufw_allow_ssh.stdout != ""
-      notify: Reload ufw if active
-
-    - name: Check ufw status
-      ansible.builtin.command: ufw status
-      register: ufw_status
-      changed_when: false
-
-    - name: Enable ufw
-      ansible.builtin.command: ufw --force enable
-      register: ufw_enable
-      changed_when: ufw_enable.rc == 0
-      when: "'Status: active' not in ufw_status.stdout"

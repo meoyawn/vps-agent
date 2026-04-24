@@ -3,6 +3,17 @@
   hosts: vps
   become: true
   gather_facts: false
+  handlers:
+    - name: Reload ufw if active
+      ansible.builtin.shell: |
+        set -euo pipefail
+        if ufw status | grep -q "^Status: active$"; then
+          ufw --force reload
+        fi
+      args:
+        executable: /bin/bash
+      changed_when: false
+
   tasks:
     - name: Apply host-level provisioning as root
       block:
@@ -88,6 +99,67 @@
           args:
             executable: /bin/bash
             creates: /usr/local/bin/scc
+
+    - name: Apply firewall policy
+      block:
+        - name: Install UFW
+          ansible.builtin.apt:
+            name: ufw
+            state: present
+
+        - name: Deny incoming traffic by default
+          ansible.builtin.lineinfile:
+            path: /etc/default/ufw
+            regexp: "^DEFAULT_INPUT_POLICY="
+            line: 'DEFAULT_INPUT_POLICY="DROP"'
+          notify: Reload ufw if active
+
+        - name: Allow outgoing traffic by default
+          ansible.builtin.lineinfile:
+            path: /etc/default/ufw
+            regexp: "^DEFAULT_OUTPUT_POLICY="
+            line: 'DEFAULT_OUTPUT_POLICY="ACCEPT"'
+          notify: Reload ufw if active
+
+        - name: Check ufw status before rule changes
+          ansible.builtin.command: ufw status
+          register: ufw_status_before_rules
+          changed_when: false
+
+        - name: Allow SSH through ufw
+          ansible.builtin.command:
+            argv:
+              - ufw
+              - allow
+              - 22/tcp
+              - comment
+              - SSH
+          when: "'22/tcp' not in ufw_status_before_rules.stdout"
+          changed_when: true
+          notify: Reload ufw if active
+
+        - name: Allow Mosh UDP through ufw
+          ansible.builtin.command:
+            argv:
+              - ufw
+              - allow
+              - 60000:61000/udp
+              - comment
+              - Mosh
+          when: "'60000:61000/udp' not in ufw_status_before_rules.stdout"
+          changed_when: true
+          notify: Reload ufw if active
+
+        - name: Check ufw status before enabling
+          ansible.builtin.command: ufw status
+          register: ufw_status_before_enable
+          changed_when: false
+
+        - name: Enable ufw
+          ansible.builtin.command: ufw --force enable
+          register: ufw_enable
+          changed_when: ufw_enable.rc == 0
+          when: "'Status: active' not in ufw_status_before_enable.stdout"
 
     - name: Apply sshd hardening
       ansible.builtin.import_role:
