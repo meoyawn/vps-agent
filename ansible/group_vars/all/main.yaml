@@ -1,21 +1,21 @@
 ---
-cursor_user: cursor
-cursor_group: cursor
-cursor_home: "/home/{{ cursor_user }}"
-cursor_shell: /usr/bin/fish
-cursor_workspace_root: "{{ cursor_home }}/workspace"
-cursor_bun_install_root: "{{ cursor_home }}/.bun"
-cursor_bun_bin_dir: "{{ cursor_bun_install_root }}/bin"
-cursor_bun_binary_path: "{{ cursor_bun_bin_dir }}/bun"
-cursor_local_bin_dir: "{{ cursor_home }}/.local/bin"
-cursor_task_binary_path: "{{ cursor_local_bin_dir }}/task"
-cursor_uv_binary_path: "{{ cursor_local_bin_dir }}/uv"
-cursor_uv_tool_dir: "{{ cursor_home }}/.local/share/uv/tools"
-cursor_volta_home: "{{ cursor_home }}/.volta"
-cursor_volta_bin_dir: "{{ cursor_volta_home }}/bin"
-cursor_volta_binary_path: "{{ cursor_volta_bin_dir }}/volta"
-cursor_profile_path: "{{ cursor_home }}/.profile"
-cursor_packages:
+agent_user: cursor
+agent_group: cursor
+agent_home: "/home/{{ agent_user }}"
+agent_shell: /usr/bin/fish
+agent_workspace_root: "{{ agent_home }}/workspace"
+agent_bun_install_root: "{{ agent_home }}/.bun"
+agent_bun_bin_dir: "{{ agent_bun_install_root }}/bin"
+agent_bun_binary_path: "{{ agent_bun_bin_dir }}/bun"
+agent_local_bin_dir: "{{ agent_home }}/.local/bin"
+agent_task_binary_path: "{{ agent_local_bin_dir }}/task"
+agent_uv_binary_path: "{{ agent_local_bin_dir }}/uv"
+agent_uv_tool_dir: "{{ agent_home }}/.local/share/uv/tools"
+agent_volta_home: "{{ agent_home }}/.volta"
+agent_volta_bin_dir: "{{ agent_volta_home }}/bin"
+agent_volta_binary_path: "{{ agent_volta_bin_dir }}/volta"
+agent_profile_path: "{{ agent_home }}/.profile"
+agent_packages:
   - bash
   - ca-certificates
   - curl
@@ -29,25 +29,25 @@ cursor_packages:
 uninstall_packages:
   - nodejs
   - npm
-cursor_path: "{{ cursor_local_bin_dir }}:{{ cursor_bun_bin_dir }}:{{ cursor_volta_bin_dir }}:/usr/local/bin:/usr/bin:/bin"
-cursor_uv_environment:
-  HOME: "{{ cursor_home }}"
-  PATH: "{{ cursor_path }}"
-  UV_TOOL_BIN_DIR: "{{ cursor_local_bin_dir }}"
-  UV_TOOL_DIR: "{{ cursor_uv_tool_dir }}"
-cursor_install_url: "https://cursor.com/install"
-cursor_bun_install_url: "https://bun.sh/install"
-cursor_volta_install_url: "https://get.volta.sh"
-cursor_task_install_url: "https://taskfile.dev/install.sh"
-cursor_uv_tools:
+agent_path: "{{ agent_local_bin_dir }}:{{ agent_bun_bin_dir }}:{{ agent_volta_bin_dir }}:/usr/local/bin:/usr/bin:/bin"
+agent_uv_environment:
+  HOME: "{{ agent_home }}"
+  PATH: "{{ agent_path }}"
+  UV_TOOL_BIN_DIR: "{{ agent_local_bin_dir }}"
+  UV_TOOL_DIR: "{{ agent_uv_tool_dir }}"
+agent_install_url: "https://cursor.com/install"
+agent_bun_install_url: "https://bun.sh/install"
+agent_volta_install_url: "https://get.volta.sh"
+agent_task_install_url: "https://taskfile.dev/install.sh"
+agent_uv_tools:
   - ast-grep-cli
-cursor_scc_download_url: "https://github.com/boyter/scc/releases/latest/download/scc_Linux_arm64.tar.gz"
-cursor_github_ssh_dir: "{{ cursor_home }}/.ssh"
-cursor_github_ssh_private_key_path: "{{ cursor_github_ssh_dir }}/id_github_vps_ed25519"
-cursor_github_ssh_public_key_path: "{{ cursor_github_ssh_private_key_path }}.pub"
-cursor_github_ssh_known_hosts_path: "{{ cursor_github_ssh_dir }}/known_hosts"
-cursor_gh_config_dir: "{{ cursor_home }}/.config/gh"
-cursor_gh_hosts_yml_dest: "{{ cursor_gh_config_dir }}/hosts.yml"
+agent_scc_download_url: "https://github.com/boyter/scc/releases/latest/download/scc_Linux_arm64.tar.gz"
+agent_github_ssh_dir: "{{ agent_home }}/.ssh"
+agent_github_ssh_private_key_path: "{{ agent_github_ssh_dir }}/id_github_vps_ed25519"
+agent_github_ssh_public_key_path: "{{ agent_github_ssh_private_key_path }}.pub"
+agent_github_ssh_known_hosts_path: "{{ agent_github_ssh_dir }}/known_hosts"
+agent_gh_config_dir: "{{ agent_home }}/.config/gh"
+agent_gh_hosts_yml_dest: "{{ agent_gh_config_dir }}/hosts.yml"
 ansible_controller_gh_hosts_yml: "{{ lookup('env', 'HOME') | trim }}/.config/gh/hosts.yml"
 # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints
 github_known_hosts_lines:

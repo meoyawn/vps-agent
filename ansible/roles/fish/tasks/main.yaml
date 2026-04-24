@@ -6,36 +6,36 @@
 
 - name: Ensure cursor user login shell is fish
   ansible.builtin.user:
-    name: "{{ cursor_user }}"
-    shell: "{{ cursor_shell }}"
+    name: "{{ agent_user }}"
+    shell: "{{ agent_shell }}"
 
 - name: Ensure fish config directories exist
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    owner: "{{ cursor_user }}"
-    group: "{{ cursor_group }}"
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
     mode: "0755"
   loop:
-    - "{{ cursor_home }}/.config"
-    - "{{ cursor_home }}/.config/fish"
-    - "{{ cursor_home }}/.config/fish/conf.d"
-    - "{{ cursor_home }}/.config/fish/completions"
+    - "{{ agent_home }}/.config"
+    - "{{ agent_home }}/.config/fish"
+    - "{{ agent_home }}/.config/fish/conf.d"
+    - "{{ agent_home }}/.config/fish/completions"
 
 - name: Install fish environment config
   ansible.builtin.template:
     src: conf.d/cursor_env.fish.j2
-    dest: "{{ cursor_home }}/.config/fish/conf.d/cursor_env.fish"
-    owner: "{{ cursor_user }}"
-    group: "{{ cursor_group }}"
+    dest: "{{ agent_home }}/.config/fish/conf.d/cursor_env.fish"
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
     mode: "0644"
 
 - name: Install curated fish config
   ansible.builtin.copy:
     src: "{{ item.src }}"
-    dest: "{{ cursor_home }}/.config/fish/{{ item.dest }}"
-    owner: "{{ cursor_user }}"
-    group: "{{ cursor_group }}"
+    dest: "{{ agent_home }}/.config/fish/{{ item.dest }}"
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
     mode: "0644"
   loop:
     - src: config.fish

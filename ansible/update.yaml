@@ -15,8 +15,8 @@
     - name: Discover installed Cursor agent binary
       ansible.builtin.shell: |
         set -euo pipefail
-        export HOME="{{ cursor_home }}"
-        export PATH="{{ cursor_path }}"
+        export HOME="{{ agent_home }}"
+        export PATH="{{ agent_path }}"
         if command -v agent >/dev/null 2>&1; then
           command -v agent
         else
@@ -25,10 +25,10 @@
       args:
         executable: /bin/bash
       become: true
-      become_user: "{{ cursor_user }}"
+      become_user: "{{ agent_user }}"
       environment:
-        HOME: "{{ cursor_home }}"
-        PATH: "{{ cursor_path }}"
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
       register: cursor_binary
       changed_when: false
 
@@ -38,10 +38,10 @@
           - "{{ cursor_binary.stdout }}"
           - --version
       become: true
-      become_user: "{{ cursor_user }}"
+      become_user: "{{ agent_user }}"
       environment:
-        HOME: "{{ cursor_home }}"
-        PATH: "{{ cursor_path }}"
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
       register: cursor_version_before
       changed_when: false
 
@@ -60,10 +60,10 @@
           - "{{ cursor_binary.stdout }}"
           - update
       become: true
-      become_user: "{{ cursor_user }}"
+      become_user: "{{ agent_user }}"
       environment:
-        HOME: "{{ cursor_home }}"
-        PATH: "{{ cursor_path }}"
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
       register: cursor_update
       changed_when: false
 
@@ -73,10 +73,10 @@
           - "{{ cursor_binary.stdout }}"
           - --version
       become: true
-      become_user: "{{ cursor_user }}"
+      become_user: "{{ agent_user }}"
       environment:
-        HOME: "{{ cursor_home }}"
-        PATH: "{{ cursor_path }}"
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
       register: cursor_version_after
       changed_when: false
 

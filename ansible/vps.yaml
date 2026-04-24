@@ -8,7 +8,7 @@
       block:
         - name: Install base packages
           ansible.builtin.apt:
-            name: "{{ cursor_packages }}"
+            name: "{{ agent_packages }}"
             state: present
 
         - name: Uninstall conflicting system packages
@@ -18,30 +18,30 @@
 
         - name: Create cursor group explicitly for deterministic provisioning across distros
           ansible.builtin.group:
-            name: "{{ cursor_group }}"
+            name: "{{ agent_group }}"
             state: present
 
         - name: Create cursor user
           ansible.builtin.user:
-            name: "{{ cursor_user }}"
-            group: "{{ cursor_group }}"
+            name: "{{ agent_user }}"
+            group: "{{ agent_group }}"
             create_home: true
             state: present
 
         - name: Ensure cursor home exists
           ansible.builtin.file:
-            path: "{{ cursor_home }}"
+            path: "{{ agent_home }}"
             state: directory
-            owner: "{{ cursor_user }}"
-            group: "{{ cursor_group }}"
+            owner: "{{ agent_user }}"
+            group: "{{ agent_group }}"
             mode: "0755"
 
         - name: Ensure cursor workspace root exists
           ansible.builtin.file:
-            path: "{{ cursor_workspace_root }}"
+            path: "{{ agent_workspace_root }}"
             state: directory
-            owner: "{{ cursor_user }}"
-            group: "{{ cursor_group }}"
+            owner: "{{ agent_user }}"
+            group: "{{ agent_group }}"
             mode: "0755"
 
         - name: Install scc
@@ -49,7 +49,7 @@
             set -euo pipefail
             tmp_dir="$(mktemp -d)"
             trap 'rm -rf "$tmp_dir"' EXIT
-            curl -fsSL "{{ cursor_scc_download_url }}" -o "$tmp_dir/scc.tar.gz"
+            curl -fsSL "{{ agent_scc_download_url }}" -o "$tmp_dir/scc.tar.gz"
             tar -xzf "$tmp_dir/scc.tar.gz" -C "$tmp_dir"
             install -m 0755 "$tmp_dir/scc" /usr/local/bin/scc
           args:
@@ -62,110 +62,110 @@
 
     - name: Apply cursor-scoped tooling as cursor
       become: true
-      become_user: "{{ cursor_user }}"
+      become_user: "{{ agent_user }}"
       block:
         - name: Install Bun for cursor user
           ansible.builtin.shell: |
             set -euo pipefail
-            curl -fsSL "{{ cursor_bun_install_url }}" | bash
+            curl -fsSL "{{ agent_bun_install_url }}" | bash
           args:
             executable: /bin/bash
-            creates: "{{ cursor_bun_binary_path }}"
+            creates: "{{ agent_bun_binary_path }}"
           environment:
-            HOME: "{{ cursor_home }}"
+            HOME: "{{ agent_home }}"
 
         - name: Install Volta for cursor user
           ansible.builtin.shell: |
             set -euo pipefail
-            curl -fsSL "{{ cursor_volta_install_url }}" | bash -s -- --skip-setup
+            curl -fsSL "{{ agent_volta_install_url }}" | bash -s -- --skip-setup
           args:
             executable: /bin/bash
-            creates: "{{ cursor_volta_binary_path }}"
+            creates: "{{ agent_volta_binary_path }}"
           environment:
-            HOME: "{{ cursor_home }}"
-            VOLTA_HOME: "{{ cursor_volta_home }}"
+            HOME: "{{ agent_home }}"
+            VOLTA_HOME: "{{ agent_volta_home }}"
 
         - name: Ensure cursor tool PATH is available in login shells
           ansible.builtin.blockinfile:
-            path: "{{ cursor_profile_path }}"
+            path: "{{ agent_profile_path }}"
             create: true
             marker: "# {mark} ANSIBLE MANAGED CURSOR PATH"
             block: |
-              export UV_TOOL_BIN_DIR="{{ cursor_local_bin_dir }}"
-              export UV_TOOL_DIR="{{ cursor_uv_tool_dir }}"
-              export BUN_INSTALL="{{ cursor_bun_install_root }}"
-              export VOLTA_HOME="{{ cursor_volta_home }}"
+              export UV_TOOL_BIN_DIR="{{ agent_local_bin_dir }}"
+              export UV_TOOL_DIR="{{ agent_uv_tool_dir }}"
+              export BUN_INSTALL="{{ agent_bun_install_root }}"
+              export VOLTA_HOME="{{ agent_volta_home }}"
               case ":$PATH:" in
-                  *:"{{ cursor_volta_bin_dir }}":*) ;;
-                  *) PATH="{{ cursor_volta_bin_dir }}:$PATH" ;;
+                  *:"{{ agent_volta_bin_dir }}":*) ;;
+                  *) PATH="{{ agent_volta_bin_dir }}:$PATH" ;;
               esac
               case ":$PATH:" in
-                  *:"{{ cursor_bun_bin_dir }}":*) ;;
-                  *) PATH="{{ cursor_bun_bin_dir }}:$PATH" ;;
+                  *:"{{ agent_bun_bin_dir }}":*) ;;
+                  *) PATH="{{ agent_bun_bin_dir }}:$PATH" ;;
               esac
               case ":$PATH:" in
-                  *:"{{ cursor_local_bin_dir }}":*) ;;
-                  *) PATH="{{ cursor_local_bin_dir }}:$PATH" ;;
+                  *:"{{ agent_local_bin_dir }}":*) ;;
+                  *) PATH="{{ agent_local_bin_dir }}:$PATH" ;;
               esac
               export PATH
 
         - name: Install Node.js via Volta for cursor user
           ansible.builtin.shell: |
             set -euo pipefail
-            if "{{ cursor_volta_binary_path }}" which node >/dev/null 2>&1; then
+            if "{{ agent_volta_binary_path }}" which node >/dev/null 2>&1; then
               echo __VOLTA_NODE_UNCHANGED__
               exit 0
             fi
-            "{{ cursor_volta_binary_path }}" install node
+            "{{ agent_volta_binary_path }}" install node
             echo __VOLTA_NODE_CHANGED__
           args:
             executable: /bin/bash
           environment:
-            HOME: "{{ cursor_home }}"
-            PATH: "{{ cursor_path }}"
-            VOLTA_HOME: "{{ cursor_volta_home }}"
+            HOME: "{{ agent_home }}"
+            PATH: "{{ agent_path }}"
+            VOLTA_HOME: "{{ agent_volta_home }}"
           register: cursor_volta_node_install
           changed_when: "'__VOLTA_NODE_CHANGED__' in cursor_volta_node_install.stdout_lines"
 
         - name: Install uv for cursor user
           ansible.builtin.shell: |
             set -euo pipefail
-            curl -fsSL https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL="{{ cursor_local_bin_dir }}" sh
+            curl -fsSL https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL="{{ agent_local_bin_dir }}" sh
           args:
             executable: /bin/bash
-            creates: "{{ cursor_uv_binary_path }}"
+            creates: "{{ agent_uv_binary_path }}"
           environment:
-            HOME: "{{ cursor_home }}"
+            HOME: "{{ agent_home }}"
 
         - name: Install Task for cursor user
           ansible.builtin.shell: |
             set -euo pipefail
-            sh -c "$(curl -fsSL --location "{{ cursor_task_install_url }}")" -- -d -b "{{ cursor_local_bin_dir }}"
+            sh -c "$(curl -fsSL --location "{{ agent_task_install_url }}")" -- -d -b "{{ agent_local_bin_dir }}"
           args:
             executable: /bin/bash
-            creates: "{{ cursor_task_binary_path }}"
+            creates: "{{ agent_task_binary_path }}"
           environment:
-            HOME: "{{ cursor_home }}"
+            HOME: "{{ agent_home }}"
 
         - name: List installed uv tools for cursor user
           ansible.builtin.command:
             argv:
-              - "{{ cursor_uv_binary_path }}"
+              - "{{ agent_uv_binary_path }}"
               - tool
               - list
-          environment: "{{ cursor_uv_environment }}"
+          environment: "{{ agent_uv_environment }}"
           register: cursor_installed_uv_tools
           changed_when: false
 
         - name: Install missing uv tools for cursor user
           ansible.builtin.command:
             argv:
-              - "{{ cursor_uv_binary_path }}"
+              - "{{ agent_uv_binary_path }}"
               - tool
               - install
               - "{{ item }}"
-          environment: "{{ cursor_uv_environment }}"
-          loop: "{{ cursor_uv_tools }}"
+          environment: "{{ agent_uv_environment }}"
+          loop: "{{ agent_uv_tools }}"
           loop_control:
             label: "{{ item }}"
           when: (cursor_installed_uv_tools.stdout | regex_search('(?m)^' ~ (item | regex_escape) ~ '\\b')) is none
@@ -173,25 +173,25 @@
         - name: Install Cursor CLI for cursor user
           ansible.builtin.shell: |
             set -euo pipefail
-            if [ -x "{{ cursor_local_bin_dir }}/agent" ] || [ -x "{{ cursor_local_bin_dir }}/cursor-agent" ]; then
+            if [ -x "{{ agent_local_bin_dir }}/agent" ] || [ -x "{{ agent_local_bin_dir }}/cursor-agent" ]; then
               echo __CURSOR_CLI_UNCHANGED__
               exit 0
             fi
-            curl -fsS "{{ cursor_install_url }}" | bash
+            curl -fsS "{{ agent_install_url }}" | bash
             echo __CURSOR_CLI_CHANGED__
           args:
             executable: /bin/bash
           environment:
-            HOME: "{{ cursor_home }}"
+            HOME: "{{ agent_home }}"
           register: cursor_cli_install
           changed_when: "'__CURSOR_CLI_CHANGED__' in cursor_cli_install.stdout_lines"
 
         - name: Ensure cursor .ssh directory exists
           ansible.builtin.file:
-            path: "{{ cursor_github_ssh_dir }}"
+            path: "{{ agent_github_ssh_dir }}"
             state: directory
-            owner: "{{ cursor_user }}"
-            group: "{{ cursor_group }}"
+            owner: "{{ agent_user }}"
+            group: "{{ agent_group }}"
             mode: "0700"
 
         - name: Generate GitHub deploy key if missing
@@ -201,37 +201,37 @@
               - -t
               - ed25519
               - -f
-              - "{{ cursor_github_ssh_private_key_path }}"
+              - "{{ agent_github_ssh_private_key_path }}"
               - -N
               - ""
               - -C
               - "{{ inventory_hostname }}"
           args:
-            creates: "{{ cursor_github_ssh_private_key_path }}"
+            creates: "{{ agent_github_ssh_private_key_path }}"
 
         - name: Pin GitHub SSH host keys for cursor
           ansible.builtin.blockinfile:
-            path: "{{ cursor_github_ssh_known_hosts_path }}"
+            path: "{{ agent_github_ssh_known_hosts_path }}"
             create: true
-            owner: "{{ cursor_user }}"
-            group: "{{ cursor_group }}"
+            owner: "{{ agent_user }}"
+            group: "{{ agent_group }}"
             mode: "0644"
             marker: "# {mark} ANSIBLE MANAGED github.com"
             block: "{{ github_known_hosts_lines | join('\n') }}"
 
         - name: Ensure SSH uses GitHub deploy key for github.com
           ansible.builtin.blockinfile:
-            path: "{{ cursor_github_ssh_dir }}/config"
+            path: "{{ agent_github_ssh_dir }}/config"
             create: true
-            owner: "{{ cursor_user }}"
-            group: "{{ cursor_group }}"
+            owner: "{{ agent_user }}"
+            group: "{{ agent_group }}"
             mode: "0600"
             marker: "# {mark} ANSIBLE MANAGED github.com"
             block: |
               Host github.com
                 HostName github.com
                 User git
-                IdentityFile {{ cursor_github_ssh_private_key_path }}
+                IdentityFile {{ agent_github_ssh_private_key_path }}
                 IdentitiesOnly yes
 
         - name: Check whether GitHub already accepts this SSH key
@@ -255,18 +255,18 @@
           block:
             - name: Ensure gh config directory exists for temporary auth
               ansible.builtin.file:
-                path: "{{ cursor_gh_config_dir }}"
+                path: "{{ agent_gh_config_dir }}"
                 state: directory
-                owner: "{{ cursor_user }}"
-                group: "{{ cursor_group }}"
+                owner: "{{ agent_user }}"
+                group: "{{ agent_group }}"
                 mode: "0700"
 
             - name: Copy controller gh hosts.yml to cursor (temporary)
               ansible.builtin.copy:
                 src: "{{ ansible_controller_gh_hosts_yml }}"
-                dest: "{{ cursor_gh_hosts_yml_dest }}"
-                owner: "{{ cursor_user }}"
-                group: "{{ cursor_group }}"
+                dest: "{{ agent_gh_hosts_yml_dest }}"
+                owner: "{{ agent_user }}"
+                group: "{{ agent_group }}"
                 mode: "0600"
               no_log: true
 
@@ -276,11 +276,11 @@
                   - gh
                   - ssh-key
                   - add
-                  - "{{ cursor_github_ssh_public_key_path }}"
+                  - "{{ agent_github_ssh_public_key_path }}"
                   - --title
                   - "{{ inventory_hostname }}"
               environment:
-                HOME: "{{ cursor_home }}"
+                HOME: "{{ agent_home }}"
               register: gh_ssh_key_add
               no_log: true
               changed_when: gh_ssh_key_add.rc == 0
@@ -296,6 +296,6 @@
           always:
             - name: Remove temporary gh hosts.yml
               ansible.builtin.file:
-                path: "{{ cursor_gh_hosts_yml_dest }}"
+                path: "{{ agent_gh_hosts_yml_dest }}"
                 state: absent
               no_log: true
