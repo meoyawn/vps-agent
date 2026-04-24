@@ -39,8 +39,7 @@ agent_install_url: "https://cursor.com/install"
 agent_bun_install_url: "https://bun.sh/install"
 agent_volta_install_url: "https://get.volta.sh"
 agent_task_install_url: "https://taskfile.dev/install.sh"
-agent_uv_tools:
-  - ast-grep-cli
+
 agent_scc_download_url: "https://github.com/boyter/scc/releases/latest/download/scc_Linux_arm64.tar.gz"
 agent_github_ssh_dir: "{{ agent_home }}/.ssh"
 agent_github_ssh_private_key_path: "{{ agent_github_ssh_dir }}/id_github_vps_ed25519"

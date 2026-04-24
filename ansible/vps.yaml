@@ -147,29 +147,6 @@
           environment:
             HOME: "{{ agent_home }}"
 
-        - name: List installed uv tools for cursor user
-          ansible.builtin.command:
-            argv:
-              - "{{ agent_uv_binary_path }}"
-              - tool
-              - list
-          environment: "{{ agent_uv_environment }}"
-          register: cursor_installed_uv_tools
-          changed_when: false
-
-        - name: Install missing uv tools for cursor user
-          ansible.builtin.command:
-            argv:
-              - "{{ agent_uv_binary_path }}"
-              - tool
-              - install
-              - "{{ item }}"
-          environment: "{{ agent_uv_environment }}"
-          loop: "{{ agent_uv_tools }}"
-          loop_control:
-            label: "{{ item }}"
-          when: (cursor_installed_uv_tools.stdout | regex_search('(?m)^' ~ (item | regex_escape) ~ '\\b')) is none
-
         - name: Install Cursor CLI for cursor user
           ansible.builtin.shell: |
             set -euo pipefail

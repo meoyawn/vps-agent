@@ -202,42 +202,9 @@
       changed_when: false
       failed_when: "'__FISH_CONFIG_OK__' not in cursor_fish_config.stdout"
 
-    - name: Verify ast-grep responds in cursor login shell
-      ansible.builtin.shell: |
-        set -euo pipefail
-        {{ agent_shell }} -lic 'ast-grep --version'
-      args:
-        executable: /bin/bash
-      become: true
-      become_user: "{{ agent_user }}"
-      environment:
-        HOME: "{{ agent_home }}"
-      changed_when: false
-
     - name: Verify scc responds
       ansible.builtin.command:
         argv:
           - scc
           - --version
       changed_when: false
-
-    - name: List uv tools for cursor user
-      ansible.builtin.command:
-        argv:
-          - "{{ agent_uv_binary_path }}"
-          - tool
-          - list
-      become: true
-      become_user: "{{ agent_user }}"
-      environment: "{{ agent_uv_environment }}"
-      register: cursor_uv_tool_list
-      changed_when: false
-
-    - name: Assert required uv tools are registered for cursor user
-      ansible.builtin.assert:
-        that:
-          - (cursor_uv_tool_list.stdout | regex_search('(?m)^' ~ (item | regex_escape) ~ '\\b')) is not none
-        fail_msg: "expected uv tool list to include {{ item }} for {{ agent_user }}"
-      loop: "{{ agent_uv_tools }}"
-      loop_control:
-        label: "{{ item }}"
