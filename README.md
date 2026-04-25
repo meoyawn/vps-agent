@@ -58,8 +58,6 @@ For Codex remote sessions, use the **`devbox-agent`** SSH host and choose a remo
 ssh devbox-agent 'fish -lic "whoami; command -v bun; command -v codex; codex --version; test -d ~/workspace"'
 ```
 
-For shell sessions, run **`task tmux`** from your machine. It SSHs to the first host in the `vps` inventory group and attaches to a **tmux** session as the `cursor` user (default session name `cursor`), creating it if missing.
-
 - Clone repositories under **`~/workspace/`** on the VPS. That directory is created for the `cursor` user so project paths stay in one place. GitHub SSH remotes support `git clone`, `git pull`, and `git push`; see [Pushing To GitHub From The VPS](docs/github.md).
 - Use as many **tmux** windows (tab-like) or **panes** (splits in the same window) as you need—each can be a different repo or working tree—without juggling multiple SSH sessions.
 - Use **mosh** when mobile or unstable networking matters, then attach to **tmux** inside it. See [orphaned Mosh notes](docs/orphaned-mosh.md) if disconnects leave stale sessions.
@@ -67,6 +65,12 @@ For shell sessions, run **`task tmux`** from your machine. It SSHs to the first 
 - Cursor Agent CLI is installed for users who still want `agent` on the VPS.
 
 If sessions wedge or disconnected agents leave processes behind, look in [docs](docs/). Known cases include Codex desktop app leaving orphaned processes on disconnect and `codex` inside `tmux` sometimes breaking; see [tmux notes](docs/tmux.md).
+
+### Linux user vs tmux session
+
+For shell sessions, run **`task tmux`**; [Taskfile](Taskfile.yaml) connects as Linux user `cursor` and attaches tmux session `macos`.
+
+For Moshi/mosh clients, rely on the Linux user being `cursor`, not on a fixed tmux session name. Mobile clients may attach existing tmux sessions without giving us full control over the session name.
 
 ## Maintenance
 

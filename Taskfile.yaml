@@ -5,7 +5,6 @@ vars:
   INVENTORY: '{{default (printf "%s/inventory/hosts.yaml" .ANSIBLE_DIR) .INVENTORY}}'
   PLAYBOOK: '{{default (printf "%s/vps.yaml" .ANSIBLE_DIR) .PLAYBOOK}}'
   TARGET: vps
-  TMUX_SESSION: cursor
 
 env:
   ANSIBLE_CONFIG: "{{.ANSIBLE_DIR}}/ansible.cfg"
@@ -89,15 +88,4 @@ tasks:
   tmux:
     desc: SSH to first host in TARGET as cursor, then attach or create a tmux session
     cmds:
-      - |
-        host_spec=$(python3 -c "
-        import json, subprocess, sys
-        inv = sys.argv[1]
-        target = sys.argv[2]
-        d = json.loads(subprocess.check_output(['ansible-inventory', '-i', inv, '--list']))
-        hosts = d[target]['hosts']
-        h = hosts[0]
-        hv = d['_meta']['hostvars'][h]
-        print(f'cursor@{hv[\"ansible_host\"]}', end='')
-        " "{{.INVENTORY}}" "{{.TARGET}}")
-        exec ssh -tt "$host_spec" "exec tmux new-session -A -s {{.TMUX_SESSION}}"
+      - bun run scripts/tmux.ts

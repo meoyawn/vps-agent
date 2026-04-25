@@ -11,6 +11,7 @@
 ## Rules
 
 - never use `node`, use `bun`
+- never use `bunx`, ask human permission to `bun i -d` instead. Then keep using `bun`
 - never write yaml extension as `.yml`, do `.yaml`
 - never change `ansible/**/*` without running `task verify`
 - never use `pip`, use `uv`
