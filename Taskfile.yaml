@@ -16,15 +16,6 @@ env:
 tasks:
   codex: codex
 
-  check:
-    desc: Validate local prerequisites and required files
-    run: once
-    cmds:
-      - mkdir -p {{.ANSIBLE_LOCAL_TEMP}}
-      - test -f "{{.INVENTORY}}"
-      - ansible-playbook --version
-      - task --version
-
   syntax:
     desc: Run ansible syntax validation
     cmds:

@@ -1,8 +1,8 @@
 # vps-agent
 
-Run the agent on a VPS so you can **close the laptop** and get on with whatever else you are doing.
+Run the agent on a VPS so you can close your laptop.
 
-**vps-agent** provisions an Ubuntu VPS for agent work, focused on [Codex remote connections](https://developers.openai.com/codex/remote-connections). It also sets up a persistent **tmux** shell and [Cursor Agent CLI](https://cursor.com/blog/cli).
+**vps-agent** provisions an Ubuntu VPS for agent work, focused on [Codex remote connections](https://developers.openai.com/codex/remote-connections). It also sets up a persistent **tmux** shell, **mosh** support, tightened [**sshd** defaults](ansible/roles/sshd/), [Zed remote projects](https://zed.dev/docs/remote-development), and [Cursor Agent CLI](https://cursor.com/blog/cli).
 
 ## Prerequisites
 
@@ -45,6 +45,13 @@ Run the agent on a VPS so you can **close the laptop** and get on with whatever 
 
 ## Workflow
 
+Priorities:
+
+1. Codex desktop app.
+2. `tmux`.
+3. `mosh` + `tmux`.
+4. Zed remote projects.
+
 For Codex remote sessions, use the **`devbox-agent`** SSH host and choose a remote project folder under **`/home/cursor/workspace/`**. Verify the connection from the laptop with:
 
 ```sh
@@ -53,13 +60,17 @@ ssh devbox-agent 'fish -lic "whoami; command -v bun; command -v codex; codex --v
 
 For shell sessions, run **`task tmux`** from your machine. It SSHs to the first host in the `vps` inventory group and attaches to a **tmux** session as the `cursor` user (default session name `cursor`), creating it if missing.
 
-- Clone repositories under **`~/workspace/`** on the VPS. That directory is created for the `cursor` user so project paths stay in one place.
+- Clone repositories under **`~/workspace/`** on the VPS. That directory is created for the `cursor` user so project paths stay in one place. GitHub SSH remotes support `git clone`, `git pull`, and `git push`; see [Pushing To GitHub From The VPS](docs/github.md).
 - Use as many **tmux** windows (tab-like) or **panes** (splits in the same window) as you need—each can be a different repo or working tree—without juggling multiple SSH sessions.
+- Use **mosh** when mobile or unstable networking matters, then attach to **tmux** inside it. See [orphaned Mosh notes](docs/orphaned-mosh.md) if disconnects leave stale sessions.
+- Zed remote projects are supported, but lowest priority here. Current tooling is still undercooked: Zed remote can orphan `codex-acp` on disconnect and brick the session. See [Zed notes](docs/zed.md).
 - Cursor Agent CLI is installed for users who still want `agent` on the VPS.
+
+If sessions wedge or disconnected agents leave processes behind, look in [docs](docs/). Known cases include Codex desktop app leaving orphaned processes on disconnect and `codex` inside `tmux` sometimes breaking; see [tmux notes](docs/tmux.md).
 
 ## Maintenance
 
-- **`task update-cursor-agent`** — Updates the Cursor agent on the already-provisioned host (separate playbook).
+- **`task update`** — Updates packages on the already-provisioned host (separate playbook).
 
 ## Alternatives
 
