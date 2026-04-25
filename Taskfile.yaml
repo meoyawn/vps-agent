@@ -87,7 +87,7 @@ tasks:
         exec ssh "$host_spec" {{.CLI_ARGS}}
 
   tmux:
-    desc: SSH to first host in TARGET, then attach or create a tmux session as cursor
+    desc: SSH to first host in TARGET as cursor, then attach or create a tmux session
     cmds:
       - |
         host_spec=$(python3 -c "
@@ -98,7 +98,6 @@ tasks:
         hosts = d[target]['hosts']
         h = hosts[0]
         hv = d['_meta']['hostvars'][h]
-        user = hv.get('ansible_user', 'root')
-        print(f'{user}@{hv[\"ansible_host\"]}', end='')
+        print(f'cursor@{hv[\"ansible_host\"]}', end='')
         " "{{.INVENTORY}}" "{{.TARGET}}")
-        exec ssh -tt "$host_spec" "su - cursor -c 'exec tmux new-session -A -s {{.TMUX_SESSION}}'"
+        exec ssh -tt "$host_spec" "exec tmux new-session -A -s {{.TMUX_SESSION}}"
