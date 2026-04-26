@@ -33,7 +33,10 @@ agent_volta_binary_path: "{{ agent_volta_bin_dir }}/volta"
 agent_profile_path: "{{ agent_home }}/.profile"
 agent_packages:
   - bash
+
+  # sandboxing for codex
   - bubblewrap
+
   - ca-certificates
   - curl
   - gh
@@ -44,6 +47,7 @@ agent_packages:
   - ripgrep
   - tmux
   - unzip
+  - golang-go
 uninstall_packages:
   - nodejs
   - npm
