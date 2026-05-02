@@ -173,6 +173,10 @@
       ansible.builtin.import_role:
         name: fish
 
+    - name: Apply Codex configuration
+      ansible.builtin.import_role:
+        name: codex
+
     - name: Apply cursor-scoped tooling as cursor
       become: true
       become_user: "{{ agent_user }}"

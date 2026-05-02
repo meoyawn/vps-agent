@@ -1,0 +1,33 @@
+---
+- name: Ensure Codex config directory exists
+  ansible.builtin.file:
+    path: "{{ agent_home }}/.codex"
+    state: directory
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
+    mode: "0755"
+
+- name: Seed Codex config if missing
+  ansible.builtin.copy:
+    src: config.toml
+    dest: "{{ agent_home }}/.codex/config.toml"
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
+    mode: "0644"
+    force: false
+
+- name: Ensure Codex config metadata
+  ansible.builtin.file:
+    path: "{{ agent_home }}/.codex/config.toml"
+    state: file
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
+    mode: "0644"
+
+- name: Install Codex hooks
+  ansible.builtin.copy:
+    src: hooks.json
+    dest: "{{ agent_home }}/.codex/hooks.json"
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
+    mode: "0644"

@@ -1,0 +1,41 @@
+model = "gpt-5.5"
+model_reasoning_effort = "high"
+personality = "pragmatic"
+project_doc_fallback_filenames = ["CLAUDE.md"]
+
+[features]
+multi_agent = true
+
+# OpenAI docs call this remote_connections, but CLI currently uses remote_control:
+# https://developers.openai.com/codex/remote-connections
+# Keep both here to ensure remote SSH connections stay enabled across doc/version churn.
+remote_connections = true
+remote_control = true
+
+codex_hooks = true
+goals = true
+
+[mcp_servers.code-review-graph]
+command = "uvx"
+args = ["code-review-graph", "serve"]
+default_tools_approval_mode = "approve"
+
+[mcp_servers.openaiDeveloperDocs]
+url = "https://developers.openai.com/mcp"
+default_tools_approval_mode = "approve"
+
+[marketplaces.caveman-repo]
+last_updated = "2026-05-02T10:09:14Z"
+last_revision = "ef6050c5e1848b6880ff47c32ade1a608a64f85e"
+source_type = "git"
+source = "https://github.com/JuliusBrussee/caveman.git"
+ref = "v1.7.0"
+
+[plugins."caveman@caveman-repo"]
+enabled = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4

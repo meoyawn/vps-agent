@@ -419,6 +419,48 @@
         HOME: "{{ agent_home }}"
       changed_when: false
 
+    - name: Stat Codex config
+      ansible.builtin.stat:
+        path: "{{ agent_home }}/.codex/config.toml"
+      register: codex_config_stat
+
+    - name: Assert Codex config is managed
+      ansible.builtin.assert:
+        that:
+          - codex_config_stat.stat.exists
+          - codex_config_stat.stat.isreg
+          - codex_config_stat.stat.pw_name == agent_user
+          - codex_config_stat.stat.mode == '0644'
+          - codex_config_stat.stat.size > 0
+        fail_msg: >-
+          expected {{ agent_home }}/.codex/config.toml to exist as a non-empty regular file
+          0644 owned by {{ agent_user }};
+          got exists={{ codex_config_stat.stat.exists | default(false) }}
+          mode={{ codex_config_stat.stat.mode | default('missing') }}
+          owner={{ codex_config_stat.stat.pw_name | default('missing') }}
+          size={{ codex_config_stat.stat.size | default('missing') }}
+
+    - name: Stat Codex hooks
+      ansible.builtin.stat:
+        path: "{{ agent_home }}/.codex/hooks.json"
+      register: codex_hooks_stat
+
+    - name: Assert Codex hooks are managed
+      ansible.builtin.assert:
+        that:
+          - codex_hooks_stat.stat.exists
+          - codex_hooks_stat.stat.isreg
+          - codex_hooks_stat.stat.pw_name == agent_user
+          - codex_hooks_stat.stat.mode == '0644'
+          - codex_hooks_stat.stat.size > 0
+        fail_msg: >-
+          expected {{ agent_home }}/.codex/hooks.json to exist as a non-empty regular file
+          0644 owned by {{ agent_user }};
+          got exists={{ codex_hooks_stat.stat.exists | default(false) }}
+          mode={{ codex_hooks_stat.stat.mode | default('missing') }}
+          owner={{ codex_hooks_stat.stat.pw_name | default('missing') }}
+          size={{ codex_hooks_stat.stat.size | default('missing') }}
+
     - name: Verify Node.js responds in cursor login shell
       ansible.builtin.shell: |
         set -euo pipefail
