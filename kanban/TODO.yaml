@@ -1,10 +1,28 @@
 t_1:
   title: "`~/.config/fish/`"
+
 t_3:
   title: "`~/.cursor/cli-config.json`"
+
 t_4:
   title: "`~/.git/`"
+
 t_5:
-  title: "make `~/.ssh/id_rsa` configurable"
+  title: make `~/.ssh/id_rsa` configurable
+
 t_6:
-  title: "make the `cursor` Ubuntu user configurable, with `agent` as target user"
+  title: make the `cursor` Ubuntu user configurable, with `agent` as target user
+
+t_7:
+  title: upgrade Ubuntu 24 Go from 1.22.2 to latest. plain apt install clearly don't work
+  success_criteria: go version >= 1.25 asserted in `verify.yaml` for `{{ agent_user }}`. `task verify` passes
+
+t_8:
+  title: can open gh PRs from vps
+  success_criteria: "`gh auth status` passes in `verify.yaml`"
+
+t_9:
+  title: remove `volta` from this repo
+  success_criteria: no `volta` mentions in this repo
+  reason: "`bun` might be enough, but actually it's not always enough, so not sure"
+  priority: someday
