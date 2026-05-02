@@ -42,6 +42,7 @@ agent_packages:
 
   - ca-certificates
   - curl
+  - docker.io
   - gh
   - git
   - openssh-client
