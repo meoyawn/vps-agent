@@ -7,6 +7,17 @@
     group: "{{ agent_group }}"
     mode: "0755"
 
+- name: Ensure agent skills directory exists
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
+    mode: "0755"
+  loop:
+    - "{{ agent_home }}/.agents"
+    - "{{ agent_skills_dir }}"
+
 - name: Seed Codex config if missing
   ansible.builtin.copy:
     src: config.toml
@@ -23,6 +34,30 @@
     owner: "{{ agent_user }}"
     group: "{{ agent_group }}"
     mode: "0644"
+
+- name: Sync controller agent skills
+  ansible.posix.synchronize:
+    src: "{{ ansible_controller_agent_skills_dir }}/"
+    dest: "{{ agent_skills_dir }}/"
+    archive: true
+    owner: false
+    group: false
+    perms: false
+    rsync_opts:
+      - "--exclude=.git/"
+
+- name: Ensure synced agent skills are owned by cursor
+  ansible.builtin.file:
+    path: "{{ agent_skills_dir }}"
+    state: directory
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
+    recurse: true
+
+- name: Ensure synced agent skills do not include git metadata
+  ansible.builtin.file:
+    path: "{{ agent_skills_dir }}/.git"
+    state: absent
 
 - name: Install Codex hooks
   ansible.builtin.copy:

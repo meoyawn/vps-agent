@@ -12,6 +12,9 @@ agent_bun_binary_path: "{{ agent_bun_bin_dir }}/bun"
 agent_bun_global_packages:
   - "@openai/codex"
 
+ansible_controller_agent_skills_dir: "{{ lookup('env', 'HOME') | trim }}/.agents/skills"
+agent_skills_dir: "{{ agent_home }}/.agents/skills"
+
 agent_local_bin_dir: "{{ agent_home }}/.local/bin"
 agent_task_binary_path: "{{ agent_local_bin_dir }}/task"
 
@@ -45,6 +48,7 @@ agent_packages:
   - jq
   - mosh
   - ripgrep
+  - rsync
   - tmux
   - unzip
   - golang-go

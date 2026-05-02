@@ -461,6 +461,52 @@
           owner={{ codex_hooks_stat.stat.pw_name | default('missing') }}
           size={{ codex_hooks_stat.stat.size | default('missing') }}
 
+    - name: Stat synced agent skills directory
+      ansible.builtin.stat:
+        path: "{{ agent_skills_dir }}"
+      register: agent_skills_dir_stat
+
+    - name: Assert synced agent skills directory is managed
+      ansible.builtin.assert:
+        that:
+          - agent_skills_dir_stat.stat.exists
+          - agent_skills_dir_stat.stat.isdir
+          - agent_skills_dir_stat.stat.pw_name == agent_user
+          - agent_skills_dir_stat.stat.mode == '0755'
+        fail_msg: >-
+          expected {{ agent_skills_dir }} to exist as a directory
+          0755 owned by {{ agent_user }};
+          got exists={{ agent_skills_dir_stat.stat.exists | default(false) }}
+          mode={{ agent_skills_dir_stat.stat.mode | default('missing') }}
+          owner={{ agent_skills_dir_stat.stat.pw_name | default('missing') }}
+
+    - name: Find synced agent skill definitions
+      ansible.builtin.find:
+        paths: "{{ agent_skills_dir }}"
+        patterns: SKILL.md
+        recurse: true
+        file_type: file
+      register: agent_skill_definitions
+
+    - name: Assert synced agent skills contain skill definitions
+      ansible.builtin.assert:
+        that:
+          - agent_skill_definitions.matched > 0
+        fail_msg: >-
+          expected at least one SKILL.md under {{ agent_skills_dir }};
+          got {{ agent_skill_definitions.matched | default(0) }}
+
+    - name: Stat excluded agent skills git metadata
+      ansible.builtin.stat:
+        path: "{{ agent_skills_dir }}/.git"
+      register: agent_skills_git_stat
+
+    - name: Assert synced agent skills exclude git metadata
+      ansible.builtin.assert:
+        that:
+          - not agent_skills_git_stat.stat.exists
+        fail_msg: "expected {{ agent_skills_dir }}/.git to be absent"
+
     - name: Verify Node.js responds in cursor login shell
       ansible.builtin.shell: |
         set -euo pipefail

@@ -6,12 +6,6 @@ vars:
   PLAYBOOK: '{{default (printf "%s/vps.yaml" .ANSIBLE_DIR) .PLAYBOOK}}'
   TARGET: vps
 
-env:
-  ANSIBLE_CONFIG: "{{.ANSIBLE_DIR}}/ansible.cfg"
-  # FIXME why are these two even envs
-  ANSIBLE_LOCAL_TEMP: .ansible/tmp
-  ANSIBLE_REMOTE_TEMP: /tmp
-
 tasks:
   codex: codex
 
@@ -23,7 +17,7 @@ tasks:
   lint:
     desc: Run ansible-lint with repo-local Ansible temp paths
     cmds:
-      - mkdir -p {{.ANSIBLE_LOCAL_TEMP}}
+      - mkdir -p .ansible/tmp/
       - ansible-lint {{.ANSIBLE_DIR}}
     sources:
       - "{{.ANSIBLE_DIR}}/**/*"
@@ -65,6 +59,7 @@ tasks:
       - task smoke
       - echo "verification passed"
     sources:
+      - "{{.HOME}}/.agents/skills/**/*"
       - "{{.ANSIBLE_DIR}}/**/*"
       - exclude: "{{.ANSIBLE_DIR}}/update.yaml"
 

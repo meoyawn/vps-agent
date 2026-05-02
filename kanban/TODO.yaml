@@ -1,0 +1,10 @@
+t_1:
+  title: "`~/.config/fish/`"
+t_3:
+  title: "`~/.cursor/cli-config.json`"
+t_4:
+  title: "`~/.git/`"
+t_5:
+  title: "make `~/.ssh/id_rsa` configurable"
+t_6:
+  title: "make the `cursor` Ubuntu user configurable, with `agent` as target user"
