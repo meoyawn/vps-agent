@@ -57,13 +57,6 @@
           - --version
       changed_when: false
 
-    - name: Verify Docker responds
-      ansible.builtin.command:
-        argv:
-          - docker
-          - --version
-      changed_when: false
-
     - name: Verify Docker runs a minimal container as cursor
       ansible.builtin.command:
         argv:
