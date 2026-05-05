@@ -39,6 +39,13 @@
             create_home: true
             state: present
 
+        - name: Allow cursor user to run Docker
+          ansible.builtin.user:
+            name: "{{ agent_user }}"
+            groups:
+              - docker
+            append: true
+
         - name: Ensure cursor home exists
           ansible.builtin.file:
             path: "{{ agent_home }}"

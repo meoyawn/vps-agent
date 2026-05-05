@@ -64,6 +64,21 @@
           - --version
       changed_when: false
 
+    - name: Verify Docker runs a minimal container as cursor
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - --network=none
+          - busybox:1.37.0-uclibc
+          - /bin/true
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      changed_when: false
+
     - name: Read ufw default incoming policy
       ansible.builtin.command:
         argv:
