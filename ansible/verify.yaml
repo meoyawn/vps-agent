@@ -326,7 +326,7 @@
         HOME: "{{ agent_home }}"
       changed_when: false
 
-    - name: Verify gh has no persistent login on VPS
+    - name: Verify `gh auth status` works
       ansible.builtin.command:
         argv:
           - gh
@@ -336,6 +336,7 @@
       become_user: "{{ agent_user }}"
       environment:
         HOME: "{{ agent_home }}"
+        GH_CONFIG_DIR: "{{ agent_gh_config_dir }}"
       register: gh_auth_status
       changed_when: false
       failed_when: gh_auth_status.rc != 0

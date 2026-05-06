@@ -1,7 +1,5 @@
 # AGENTS.md
 
-- [project progress](progress.md)
-
 ## Project vocab/refs
 
 - vps: [remote VPS](ansible/inventory/hosts.yaml)
