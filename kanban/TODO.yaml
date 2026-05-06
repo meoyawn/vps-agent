@@ -26,3 +26,10 @@ t_9:
   success_criteria: no `volta` mentions in this repo
   reason: "`bun` might be enough, but actually it's not always enough, so not sure"
   priority: someday
+
+t_10:
+  title: fix tmux
+  success_criteria:
+    - shift + enter works
+    - Selecting text works or copies to clipboard
+    - Git diff paging works
