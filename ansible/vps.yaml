@@ -371,54 +371,45 @@
           failed_when: false
           changed_when: false
 
-        - name: Register GitHub SSH key via gh (temporary hosts.yml)
+        - name: Ensure gh config directory exists
+          ansible.builtin.file:
+            path: "{{ agent_gh_config_dir }}"
+            state: directory
+            owner: "{{ agent_user }}"
+            group: "{{ agent_group }}"
+            mode: "0700"
+
+        - name: Copy controller gh hosts.yml to cursor
+          ansible.builtin.copy:
+            src: "{{ ansible_controller_gh_hosts_yml }}"
+            dest: "{{ agent_gh_hosts_yml_dest }}"
+            owner: "{{ agent_user }}"
+            group: "{{ agent_group }}"
+            mode: "0600"
+          no_log: true
+
+        - name: Add SSH public key to GitHub account
           when: >-
             'successfully authenticated' not in
             ((cursor_github_ssh_precheck.stdout | default('')) ~ (cursor_github_ssh_precheck.stderr | default(''))) | lower
-          block:
-            - name: Ensure gh config directory exists for temporary auth
-              ansible.builtin.file:
-                path: "{{ agent_gh_config_dir }}"
-                state: directory
-                owner: "{{ agent_user }}"
-                group: "{{ agent_group }}"
-                mode: "0700"
-
-            - name: Copy controller gh hosts.yml to cursor (temporary)
-              ansible.builtin.copy:
-                src: "{{ ansible_controller_gh_hosts_yml }}"
-                dest: "{{ agent_gh_hosts_yml_dest }}"
-                owner: "{{ agent_user }}"
-                group: "{{ agent_group }}"
-                mode: "0600"
-              no_log: true
-
-            - name: Add SSH public key to GitHub account
-              ansible.builtin.command:
-                argv:
-                  - gh
-                  - ssh-key
-                  - add
-                  - "{{ agent_github_ssh_public_key_path }}"
-                  - --title
-                  - "{{ inventory_hostname }}"
-              environment:
-                HOME: "{{ agent_home }}"
-              register: gh_ssh_key_add
-              no_log: true
-              changed_when: gh_ssh_key_add.rc == 0
-              failed_when: >-
-                gh_ssh_key_add.rc != 0 and
-                'already' not in (gh_ssh_key_add.stderr | default('') | lower) and
-                'already' not in (gh_ssh_key_add.stdout | default('') | lower) and
-                'in use' not in (gh_ssh_key_add.stderr | default('') | lower) and
-                'in use' not in (gh_ssh_key_add.stdout | default('') | lower) and
-                '422' not in (gh_ssh_key_add.stderr | default('')) and
-                '422' not in (gh_ssh_key_add.stdout | default(''))
-
-          always:
-            - name: Remove temporary gh hosts.yml
-              ansible.builtin.file:
-                path: "{{ agent_gh_hosts_yml_dest }}"
-                state: absent
-              no_log: true
+          ansible.builtin.command:
+            argv:
+              - gh
+              - ssh-key
+              - add
+              - "{{ agent_github_ssh_public_key_path }}"
+              - --title
+              - "{{ inventory_hostname }}"
+          environment:
+            HOME: "{{ agent_home }}"
+          register: gh_ssh_key_add
+          no_log: true
+          changed_when: gh_ssh_key_add.rc == 0
+          failed_when: >-
+            gh_ssh_key_add.rc != 0 and
+            'already' not in (gh_ssh_key_add.stderr | default('') | lower) and
+            'already' not in (gh_ssh_key_add.stdout | default('') | lower) and
+            'in use' not in (gh_ssh_key_add.stderr | default('') | lower) and
+            'in use' not in (gh_ssh_key_add.stdout | default('') | lower) and
+            '422' not in (gh_ssh_key_add.stderr | default('')) and
+            '422' not in (gh_ssh_key_add.stdout | default(''))

@@ -338,7 +338,7 @@
         HOME: "{{ agent_home }}"
       register: gh_auth_status
       changed_when: false
-      failed_when: gh_auth_status.rc == 0
+      failed_when: gh_auth_status.rc != 0
 
     - name: Discover installed Cursor agent binary
       ansible.builtin.shell: |
