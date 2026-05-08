@@ -326,6 +326,21 @@
         HOME: "{{ agent_home }}"
       changed_when: false
 
+    - name: Stat cursor tmux config
+      ansible.builtin.stat:
+        path: "{{ agent_home }}/.tmux.conf"
+      register: cursor_tmux_config_stat
+
+    - name: Assert cursor tmux config is not empty
+      ansible.builtin.assert:
+        that:
+          - cursor_tmux_config_stat.stat.exists
+          - cursor_tmux_config_stat.stat.isreg
+          - cursor_tmux_config_stat.stat.pw_name == agent_user
+          - cursor_tmux_config_stat.stat.gr_name == agent_group
+          - cursor_tmux_config_stat.stat.size > 0
+        fail_msg: "expected nonempty cursor tmux config at {{ agent_home }}/.tmux.conf"
+
     - name: Verify `gh auth status` works
       ansible.builtin.command:
         argv:

@@ -1,0 +1,8 @@
+- name: Install cursor tmux config
+  ansible.builtin.copy:
+    src: tmux.conf
+    dest: "{{ agent_home }}/.tmux.conf"
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
+    mode: "0644"
+  notify: Apply cursor tmux config

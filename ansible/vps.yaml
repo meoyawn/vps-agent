@@ -176,6 +176,10 @@
       ansible.builtin.import_role:
         name: terminal
 
+    - name: Apply tmux configuration
+      ansible.builtin.import_role:
+        name: tmux
+
     - name: Apply fish configuration
       ansible.builtin.import_role:
         name: fish

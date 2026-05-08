@@ -1,0 +1,12 @@
+- name: Apply cursor tmux config
+  become: true
+  become_user: "{{ agent_user }}"
+  ansible.builtin.shell: |
+    if tmux list-sessions >/dev/null 2>&1; then
+      tmux source-file "{{ agent_home }}/.tmux.conf"
+    fi
+  args:
+    executable: /bin/sh
+  environment:
+    HOME: "{{ agent_home }}"
+  changed_when: false
