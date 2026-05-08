@@ -1,3 +1,7 @@
 t_2:
   title: "`~/.agents/skills/`"
   finish: 2026-05-02T16:44:31+0300
+
+t_11:
+  title: shift + enter works
+  finish: 2026-05-08T14:32:17+0300

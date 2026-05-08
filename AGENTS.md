@@ -12,6 +12,7 @@
 - never use `bunx`, ask human permission to `bun i -d` instead. Then keep using `bun`
 - never write yaml extension as `.yml`, do `.yaml`
 - never skip running `task verify` after `ansible/**/*` change
+- never run `task verify` when working with `git`
 - never use `pip`, use `uv`
 - never use `bash` in Markdown code blocks, use `sh` instead
 - never leak IPs or secrets in git history, this repo is open source
