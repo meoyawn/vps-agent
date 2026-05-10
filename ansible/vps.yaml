@@ -390,14 +390,60 @@
             group: "{{ agent_group }}"
             mode: "0700"
 
-        - name: Copy controller gh hosts.yml to cursor
-          ansible.builtin.copy:
-            src: "{{ ansible_controller_gh_hosts_yml }}"
-            dest: "{{ agent_gh_hosts_yml_dest }}"
-            owner: "{{ agent_user }}"
-            group: "{{ agent_group }}"
-            mode: "0600"
+        - name: Check gh auth status for cursor user
+          ansible.builtin.command:
+            argv:
+              - gh
+              - auth
+              - status
+              - --hostname
+              - github.com
+          environment:
+            HOME: "{{ agent_home }}"
+            GH_CONFIG_DIR: "{{ agent_gh_config_dir }}"
+          register: cursor_gh_auth_status
+          failed_when: false
+          changed_when: false
+
+        - name: Authenticate gh for cursor user from vaulted token
+          ansible.builtin.command:
+            argv:
+              - gh
+              - auth
+              - login
+              - --hostname
+              - github.com
+              - --git-protocol
+              - ssh
+              - --with-token
+            stdin: "{{ vault_github_token }}"
+          environment:
+            HOME: "{{ agent_home }}"
+            GH_CONFIG_DIR: "{{ agent_gh_config_dir }}"
+          register: cursor_gh_auth_login
           no_log: true
+          changed_when: cursor_gh_auth_login.rc == 0
+          when: >-
+            'logged in to github.com account' not in
+            (
+              (cursor_gh_auth_status.stdout | default('')) ~
+              (cursor_gh_auth_status.stderr | default(''))
+            ) | lower or
+            'active account: true' not in
+            (
+              (cursor_gh_auth_status.stdout | default('')) ~
+              (cursor_gh_auth_status.stderr | default(''))
+            ) | lower or
+            'git operations protocol: ssh' not in
+            (
+              (cursor_gh_auth_status.stdout | default('')) ~
+              (cursor_gh_auth_status.stderr | default(''))
+            ) | lower or
+            'failed to log in' in
+            (
+              (cursor_gh_auth_status.stdout | default('')) ~
+              (cursor_gh_auth_status.stderr | default(''))
+            ) | lower
 
         - name: Add SSH public key to GitHub account
           when: >-
@@ -413,6 +459,7 @@
               - "{{ inventory_hostname }}"
           environment:
             HOME: "{{ agent_home }}"
+            GH_CONFIG_DIR: "{{ agent_gh_config_dir }}"
           register: gh_ssh_key_add
           no_log: true
           changed_when: gh_ssh_key_add.rc == 0

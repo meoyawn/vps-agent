@@ -1,4 +1,6 @@
 .ansible/
+/.secrets/
 ansible/inventory/hosts.yaml
 .task/
 node_modules/
+.code-review-graph/

@@ -1,10 +1,11 @@
 # Pushing To GitHub From The VPS
 
 This project configures the VPS so users can push repository changes to GitHub
-without turning the host into a general-purpose GitHub credential store.
+without copying controller GitHub CLI state onto the host.
 
 The setup is intentionally narrow: Git push works from the managed `cursor`
-environment, while broad tokens and personal SSH keys stay off the VPS.
+environment, while personal SSH keys stay off the VPS. A vaulted GitHub token is
+used to authenticate `gh` for the `cursor` user and register the VPS SSH key.
 
 ## What This Enables
 
@@ -12,8 +13,7 @@ environment, while broad tokens and personal SSH keys stay off the VPS.
 - Use GitHub SSH remotes such as `git@github.com:owner/repo.git`.
 - Push as the `cursor` user from the VPS session.
 
-This does not make the VPS a place for personal GitHub tokens, broad account
-credentials, or ad hoc SSH keys.
+This does not make the VPS a place for personal SSH keys or ad hoc SSH keys.
 
 ## How Access Works
 
@@ -21,9 +21,9 @@ credentials, or ad hoc SSH keys.
   `/home/cursor/.ssh/id_github_vps_ed25519`.
 - SSH for `github.com` is pinned to that key with `IdentitiesOnly yes`.
 - The private key stays on the VPS.
+- `gh` is authenticated for the `cursor` user from Ansible Vault variable
+  `vault_github_token`.
 - The public key is registered with GitHub by `gh ssh-key add`.
-- Controller `gh` auth is copied into the `cursor` GitHub CLI config only long
-  enough to register the public key, with `no_log: true`, then removed again.
 - GitHub host keys are pinned in `/home/cursor/.ssh/known_hosts`.
 
 ## User Flow

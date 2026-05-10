@@ -383,12 +383,14 @@
           expected tmux config to preserve Shift+Enter via extended keys;
           got {{ cursor_tmux_key_config.stdout_lines | default([]) }}
 
-    - name: Verify `gh auth status` works
+    - name: Read gh auth status
       ansible.builtin.command:
         argv:
           - gh
           - auth
           - status
+          - --hostname
+          - github.com
       become: true
       become_user: "{{ agent_user }}"
       environment:
@@ -396,7 +398,28 @@
         GH_CONFIG_DIR: "{{ agent_gh_config_dir }}"
       register: gh_auth_status
       changed_when: false
-      failed_when: gh_auth_status.rc != 0
+      failed_when: false
+
+    - name: Assert gh auth status is healthy
+      ansible.builtin.assert:
+        that:
+          - gh_auth_status.rc == 0
+          - >-
+            'logged in to github.com account' in
+            ((gh_auth_status.stdout | default('')) ~ (gh_auth_status.stderr | default(''))) | lower
+          - >-
+            'active account: true' in
+            ((gh_auth_status.stdout | default('')) ~ (gh_auth_status.stderr | default(''))) | lower
+          - >-
+            'git operations protocol: ssh' in
+            ((gh_auth_status.stdout | default('')) ~ (gh_auth_status.stderr | default(''))) | lower
+          - >-
+            'failed to log in' not in
+            ((gh_auth_status.stdout | default('')) ~ (gh_auth_status.stderr | default(''))) | lower
+        fail_msg: >-
+          expected gh auth status to report a healthy active github.com login using SSH;
+          rc={{ gh_auth_status.rc }} stdout={{ gh_auth_status.stdout | default('') }}
+          stderr={{ gh_auth_status.stderr | default('') }}
 
     - name: Discover installed Cursor agent binary
       ansible.builtin.shell: |

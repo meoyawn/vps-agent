@@ -73,8 +73,6 @@ agent_github_ssh_known_hosts_path: "{{ agent_github_ssh_dir }}/known_hosts"
 agent_cursor_authorized_keys_path: "{{ agent_github_ssh_dir }}/authorized_keys"
 ansible_controller_ssh_public_key_path: "{{ lookup('env', 'HOME') | trim }}/.ssh/id_rsa.pub"
 agent_gh_config_dir: "{{ agent_home }}/.config/gh"
-agent_gh_hosts_yml_dest: "{{ agent_gh_config_dir }}/hosts.yml"
-ansible_controller_gh_hosts_yml: "{{ lookup('env', 'HOME') | trim }}/.config/gh/hosts.yml"
 # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints
 github_known_hosts_lines:
   - github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl

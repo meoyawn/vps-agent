@@ -16,8 +16,9 @@ Run the agent on a VPS so you can close your laptop.
   uv tool install ansible-lint
   ```
 
-- **[GitHub CLI](https://cli.github.com/) (`gh`)** — used during provisioning (registering SSH keys with GitHub).
-- A working GitHub login for that CLI: **`gh auth status`** must succeed before you run playbooks that talk to GitHub.
+- A GitHub token encrypted with Ansible Vault as **`vault_github_token`**.
+  It is used during provisioning to authenticate `gh` for the `cursor` user
+  and register the VPS SSH key with GitHub.
 - A local SSH key at **`~/.ssh/id_rsa`** with public key **`~/.ssh/id_rsa.pub`**. The playbook authorizes this public key for the `cursor` user so Codex can SSH to the VPS directly.
 - A local SSH config entry for the Codex remote connection:
 
