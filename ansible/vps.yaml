@@ -46,6 +46,13 @@
               - docker
             append: true
 
+        - name: Install docker-compose compatibility command
+          ansible.builtin.file:
+            src: "{{ agent_docker_compose_binary_path }}"
+            dest: "{{ agent_docker_compose_compat_path }}"
+            state: link
+            force: true
+
         - name: Ensure cursor home exists
           ansible.builtin.file:
             path: "{{ agent_home }}"
