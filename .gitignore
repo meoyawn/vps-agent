@@ -1,5 +1,6 @@
 .ansible/
 /.secrets/
+ansible/group_vars/all/vault.yaml
 ansible/inventory/hosts.yaml
 .task/
 node_modules/

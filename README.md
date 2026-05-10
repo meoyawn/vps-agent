@@ -42,7 +42,50 @@ Run the agent on a VPS so you can close your laptop.
    cp ansible/inventory/hosts.example.yaml ansible/inventory/hosts.yaml
    ```
 
-2. Run **`task apply`** once the inventory exists.
+2. A local GitHub token file at **`.secrets/github-token`**. The `.secrets/`
+   directory is gitignored; keep the plaintext token there only long enough to
+   create or update the Ansible Vault value.
+
+   The token must be able to run `gh ssh-key add`. A classic token needs
+   `admin:public_key`; add `repo` if the VPS should use `gh` with private
+   repositories.
+
+   ```sh
+   mkdir -p .secrets
+   $EDITOR .secrets/github-token
+   ```
+
+3. A vault password file outside this repository. For example:
+
+   ```sh
+   mkdir -p ../vault
+   $EDITOR ../vault/vps-agent.txt
+   ```
+
+4. Encrypt the token into **`ansible/group_vars/all/vault.yaml`**. This vault
+   file is machine-local and gitignored, like the inventory file. Do not commit
+   it; each user should create their own encrypted token file.
+
+   ```sh
+   ANSIBLE_VAULT_PASSWORD_FILE=../vault/vps-agent.txt ansible-vault encrypt_string --stdin-name vault_github_token --output ansible/group_vars/all/vault.yaml < .secrets/github-token
+   ```
+
+5. Export **`ANSIBLE_VAULT_PASSWORD_FILE`** before running tasks that read
+   vaulted variables.
+
+   In fish:
+
+   ```fish
+   set -x ANSIBLE_VAULT_PASSWORD_FILE ../vault/vps-agent.txt
+   ```
+
+   In POSIX shells:
+
+   ```sh
+   export ANSIBLE_VAULT_PASSWORD_FILE=../vault/vps-agent.txt
+   ```
+
+6. Run **`task apply`** once the inventory and vault are ready.
 
 ## Workflow
 
