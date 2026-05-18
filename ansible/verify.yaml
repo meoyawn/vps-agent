@@ -86,6 +86,20 @@
           - -version
       changed_when: false
 
+    - name: Verify Playwright can install Chromium
+      ansible.builtin.command:
+        argv:
+          - bunx
+          - playwright
+          - install
+          - chromium
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
+      changed_when: false
+
     - name: Read ufw default incoming policy
       ansible.builtin.command:
         argv:

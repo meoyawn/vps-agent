@@ -37,6 +37,10 @@ agent_profile_path: "{{ agent_home }}/.profile"
 agent_packages:
   - bash
 
+  # chromium runtime libraries
+  - libgtk-3-0t64
+  - libgbm1
+
   # sandboxing for codex
   - bubblewrap
 
