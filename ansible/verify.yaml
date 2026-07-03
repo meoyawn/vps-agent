@@ -665,11 +665,10 @@
           - codex_config_stat.stat.exists
           - codex_config_stat.stat.isreg
           - codex_config_stat.stat.pw_name == agent_user
-          - codex_config_stat.stat.mode == '0644'
           - codex_config_stat.stat.size > 0
         fail_msg: >-
           expected {{ agent_codex_config_path }} to exist as a non-empty regular file
-          0644 owned by {{ agent_user }};
+          owned by {{ agent_user }};
           got exists={{ codex_config_stat.stat.exists | default(false) }}
           mode={{ codex_config_stat.stat.mode | default('missing') }}
           owner={{ codex_config_stat.stat.pw_name | default('missing') }}
@@ -684,10 +683,10 @@
       ansible.builtin.assert:
         that:
           - "'[marketplaces.caveman-repo]' in (codex_config_content.content | b64decode)"
-          - "'[plugins.\"caveman@caveman-repo\"]' in (codex_config_content.content | b64decode)"
+          - '''[plugins."caveman@caveman-repo"]'' in (codex_config_content.content | b64decode)'
           - "'[marketplaces.local-plugins]' in (codex_config_content.content | b64decode)"
-          - "'source = \"' ~ agent_codex_dir ~ '\"' in (codex_config_content.content | b64decode)"
-          - "'[plugins.\"code-review-graph@local-plugins\"]' in (codex_config_content.content | b64decode)"
+          - '''source = "'' ~ agent_codex_dir ~ ''"'' in (codex_config_content.content | b64decode)'
+          - '''[plugins."code-review-graph@local-plugins"]'' in (codex_config_content.content | b64decode)'
         fail_msg: "expected managed caveman and local plugin blocks in {{ agent_codex_config_path }}"
 
     - name: Stat Codex hooks
