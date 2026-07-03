@@ -12,22 +12,24 @@ async function main(): Promise<0 | 1> {
     return 1;
   }
 
-  const hosts = children[target]?.hosts;
-  const [hostName] = Object.keys(hosts ?? {});
+  const hosts = children[target]?.hosts ?? {};
+  const [hostName] = Object.keys(hosts);
 
   if (!hostName) {
     console.error(`target has no hosts: ${target}`);
     return 1;
   }
 
-  const ansibleHost = inventory.all?.hosts?.[hostName]?.ansible_host;
+  const childHost = hosts[hostName];
+  const ansibleHost =
+    childHost?.ansible_host ?? inventory.all?.hosts?.[hostName]?.ansible_host;
 
   if (typeof ansibleHost !== "string" || ansibleHost.length === 0) {
     console.error(`host has no ansible_host: ${hostName}`);
     return 1;
   }
 
-  const hostSpec = `cursor@${ansibleHost}`;
+  const hostSpec = `agent@${ansibleHost}`;
   const remoteCommand = "exec tmux -T extkeys new-session -A -s macos";
 
   await $`ssh -tt ${hostSpec} ${remoteCommand}`;

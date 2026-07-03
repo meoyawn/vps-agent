@@ -12,7 +12,12 @@ const contents: {
     children?: Record<
       string,
       {
-        hosts?: Record<string, unknown>;
+        hosts?: Record<
+          string,
+          {
+            ansible_host?: unknown;
+          }
+        >;
       }
     >;
   };

@@ -1,10 +1,36 @@
----
-- name: Verify self-hosted Cursor agent
+- name: Verify self-hosted agent VPS
   hosts: vps
   become: true
-  gather_facts: false
+  gather_facts: true
   tasks:
-    - name: Verify cursor user exists
+    - name: Assert CPU architecture is supported
+      ansible.builtin.assert:
+        that:
+          - agent_detected_arch in agent_arch_map
+          - agent_scc_arch in ['arm64', 'x86_64']
+        fail_msg: >-
+          unsupported CPU architecture {{ agent_detected_arch | default('unknown') }};
+          supported architectures are {{ agent_arch_map.keys() | list | join(', ') }}
+
+    - name: Collect package facts
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Assert base packages are installed
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['packages'][item] is defined
+        fail_msg: "expected package {{ item }} to be installed"
+      loop: "{{ agent_packages + ['fish', 'ufw'] }}"
+
+    - name: Assert conflicting system packages are absent
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['packages'][item] is not defined
+        fail_msg: "expected package {{ item }} to be absent"
+      loop: "{{ uninstall_packages }}"
+
+    - name: Verify agent user exists
       ansible.builtin.command:
         argv:
           - id
@@ -12,22 +38,22 @@
           - "{{ agent_user }}"
       changed_when: false
 
-    - name: Read cursor passwd entry
+    - name: Read agent passwd entry
       ansible.builtin.command:
         argv:
           - getent
           - passwd
           - "{{ agent_user }}"
-      register: cursor_passwd_entry
+      register: agent_passwd_entry
       changed_when: false
 
-    - name: Verify cursor login shell is fish
+    - name: Verify agent login shell is fish
       ansible.builtin.assert:
         that:
-          - cursor_passwd_entry.stdout.endswith(':' ~ agent_shell)
-        fail_msg: "expected {{ agent_user }} login shell to be {{ agent_shell }}, got {{ cursor_passwd_entry.stdout }}"
+          - agent_passwd_entry.stdout.endswith(':' ~ agent_shell)
+        fail_msg: "expected {{ agent_user }} login shell to be {{ agent_shell }}, got {{ agent_passwd_entry.stdout }}"
 
-    - name: Verify cursor home exists
+    - name: Verify agent home exists
       ansible.builtin.command:
         argv:
           - test
@@ -35,7 +61,7 @@
           - "{{ agent_home }}"
       changed_when: false
 
-    - name: Verify cursor workspace root exists
+    - name: Verify agent workspace root exists
       ansible.builtin.command:
         argv:
           - test
@@ -57,7 +83,7 @@
           - --version
       changed_when: false
 
-    - name: Verify Docker runs a minimal container as cursor
+    - name: Verify Docker runs a minimal container as agent
       ansible.builtin.command:
         argv:
           - docker
@@ -188,7 +214,7 @@
           expected kernel.apparmor_restrict_unprivileged_userns=0;
           got {{ apparmor_restrict_unprivileged_userns.stdout | default('missing') }}
 
-    - name: Verify cursor can create user namespaces
+    - name: Verify agent can create user namespaces
       ansible.builtin.command:
         argv:
           - unshare
@@ -200,80 +226,57 @@
         HOME: "{{ agent_home }}"
       changed_when: false
 
-    - name: Probe GitHub SSH (git@github.com)
-      ansible.builtin.command:
-        argv:
-          - ssh
-          - -o
-          - BatchMode=yes
-          - -o
-          - StrictHostKeyChecking=yes
-          - -T
-          - git@github.com
-      become: true
-      become_user: "{{ agent_user }}"
-      environment:
-        HOME: "{{ agent_home }}"
-      register: github_ssh_probe
-      failed_when: false
-      changed_when: false
-
-    - name: Assert GitHub SSH authentication succeeded
-      ansible.builtin.assert:
-        that:
-          - >-
-            'successfully authenticated' in
-            ((github_ssh_probe.stdout | default('')) ~ (github_ssh_probe.stderr | default(''))) | lower
-        fail_msg: >-
-          expected GitHub SSH probe to confirm authentication;
-          rc={{ github_ssh_probe.rc }} stdout={{ github_ssh_probe.stdout | default('') }}
-          stderr={{ github_ssh_probe.stderr | default('') }}
-
-    - name: Stat GitHub deploy private key
+    - name: Stat agent authorized keys
       ansible.builtin.stat:
-        path: "{{ agent_github_ssh_private_key_path }}"
-      register: github_deploy_key_stat
+        path: "{{ agent_authorized_keys_path }}"
+      register: agent_authorized_keys_stat
 
-    - name: Assert GitHub deploy private key permissions
+    - name: Assert agent authorized keys permissions
       ansible.builtin.assert:
         that:
-          - github_deploy_key_stat.stat.exists
-          - github_deploy_key_stat.stat.isreg
-          - github_deploy_key_stat.stat.mode == '0600'
-          - github_deploy_key_stat.stat.pw_name == agent_user
+          - agent_authorized_keys_stat.stat.exists
+          - agent_authorized_keys_stat.stat.isreg
+          - agent_authorized_keys_stat.stat.mode == '0600'
+          - agent_authorized_keys_stat.stat.pw_name == agent_user
+          - agent_authorized_keys_stat.stat.size > 0
         fail_msg: >-
-          expected {{ agent_github_ssh_private_key_path }} to exist as a regular file 0600 owned by {{ agent_user }};
-          got exists={{ github_deploy_key_stat.stat.exists | default(false) }}
-          mode={{ github_deploy_key_stat.stat.mode | default('missing') }}
-          owner={{ github_deploy_key_stat.stat.pw_name | default('missing') }}
+          expected {{ agent_authorized_keys_path }} to exist as a non-empty regular file
+          0600 owned by {{ agent_user }};
+          got exists={{ agent_authorized_keys_stat.stat.exists | default(false) }}
+          mode={{ agent_authorized_keys_stat.stat.mode | default('missing') }}
+          owner={{ agent_authorized_keys_stat.stat.pw_name | default('missing') }}
+          size={{ agent_authorized_keys_stat.stat.size | default('missing') }}
 
-    - name: Stat cursor authorized keys
-      ansible.builtin.stat:
-        path: "{{ agent_cursor_authorized_keys_path }}"
-      register: cursor_authorized_keys_stat
+    - name: Find synced SSH private keys
+      ansible.builtin.find:
+        paths: "{{ agent_ssh_dir }}"
+        patterns: id_*
+        excludes: "*.pub"
+        file_type: file
+      register: agent_synced_private_keys
 
-    - name: Assert cursor authorized keys permissions
+    - name: Assert synced SSH private key permissions
       ansible.builtin.assert:
         that:
-          - cursor_authorized_keys_stat.stat.exists
-          - cursor_authorized_keys_stat.stat.isreg
-          - cursor_authorized_keys_stat.stat.mode == '0600'
-          - cursor_authorized_keys_stat.stat.pw_name == agent_user
+          - item.mode == '0600'
+          - item.pw_name == agent_user
         fail_msg: >-
-          expected {{ agent_cursor_authorized_keys_path }} to exist as a regular file 0600 owned by {{ agent_user }};
-          got exists={{ cursor_authorized_keys_stat.stat.exists | default(false) }}
-          mode={{ cursor_authorized_keys_stat.stat.mode | default('missing') }}
-          owner={{ cursor_authorized_keys_stat.stat.pw_name | default('missing') }}
+          expected {{ item.path }} to be 0600 owned by {{ agent_user }};
+          got mode={{ item.mode | default('missing') }} owner={{ item.pw_name | default('missing') }}
+      loop: "{{ agent_synced_private_keys.files }}"
 
-    - name: Verify controller SSH key is authorized for cursor
-      ansible.builtin.lineinfile:
-        path: "{{ agent_cursor_authorized_keys_path }}"
-        line: "{{ lookup('file', ansible_controller_ssh_public_key_path) }}"
-        state: present
-      check_mode: true
-      register: cursor_authorized_key_check
-      failed_when: cursor_authorized_key_check.changed
-      changed_when: false
+    - name: Find synced SSH public keys
+      ansible.builtin.find:
+        paths: "{{ agent_ssh_dir }}"
+        patterns: "*.pub"
+        file_type: file
+      register: agent_synced_public_keys
+
+    - name: Assert SSH public keys were synced
+      ansible.builtin.assert:
+        that:
+          - agent_synced_public_keys.matched > 0
+        fail_msg: "expected at least one public key under {{ agent_ssh_dir }}"
 
     - name: Validate sshd configuration
       ansible.builtin.command:
@@ -354,22 +357,22 @@
         HOME: "{{ agent_home }}"
       changed_when: false
 
-    - name: Stat cursor tmux config
+    - name: Stat agent tmux config
       ansible.builtin.stat:
         path: "{{ agent_home }}/.tmux.conf"
-      register: cursor_tmux_config_stat
+      register: agent_tmux_config_stat
 
-    - name: Assert cursor tmux config is not empty
+    - name: Assert agent tmux config is not empty
       ansible.builtin.assert:
         that:
-          - cursor_tmux_config_stat.stat.exists
-          - cursor_tmux_config_stat.stat.isreg
-          - cursor_tmux_config_stat.stat.pw_name == agent_user
-          - cursor_tmux_config_stat.stat.gr_name == agent_group
-          - cursor_tmux_config_stat.stat.size > 0
-        fail_msg: "expected nonempty cursor tmux config at {{ agent_home }}/.tmux.conf"
+          - agent_tmux_config_stat.stat.exists
+          - agent_tmux_config_stat.stat.isreg
+          - agent_tmux_config_stat.stat.pw_name == agent_user
+          - agent_tmux_config_stat.stat.gr_name == agent_group
+          - agent_tmux_config_stat.stat.size > 0
+        fail_msg: "expected nonempty agent tmux config at {{ agent_home }}/.tmux.conf"
 
-    - name: Verify cursor tmux modified-key settings
+    - name: Verify agent tmux modified-key settings
       ansible.builtin.shell: |
         tmux -L vps-agent-key-verify -f "{{ agent_home }}/.tmux.conf" \
           start-server \; \
@@ -383,19 +386,19 @@
       become_user: "{{ agent_user }}"
       environment:
         HOME: "{{ agent_home }}"
-      register: cursor_tmux_key_config
+      register: agent_tmux_key_config
       changed_when: false
 
-    - name: Assert cursor tmux modified-key settings
+    - name: Assert agent tmux modified-key settings
       ansible.builtin.assert:
         that:
-          - "'extended-keys always' in cursor_tmux_key_config.stdout_lines"
-          - cursor_tmux_key_config.stdout is search('xterm-ghostty:extkeys')
-          - cursor_tmux_key_config.stdout is search('S-Enter')
-          - cursor_tmux_key_config.stdout is search('send-keys Escape')
+          - "'extended-keys always' in agent_tmux_key_config.stdout_lines"
+          - agent_tmux_key_config.stdout is search('xterm-ghostty:extkeys')
+          - agent_tmux_key_config.stdout is search('S-Enter')
+          - agent_tmux_key_config.stdout is search('send-keys Escape')
         fail_msg: >-
           expected tmux config to preserve Shift+Enter via extended keys;
-          got {{ cursor_tmux_key_config.stdout_lines | default([]) }}
+          got {{ agent_tmux_key_config.stdout_lines | default([]) }}
 
     - name: Read gh auth status
       ansible.builtin.command:
@@ -414,49 +417,11 @@
       changed_when: false
       failed_when: false
 
-    - name: Assert gh auth status is healthy
-      ansible.builtin.assert:
-        that:
-          - gh_auth_status.rc == 0
-          - >-
-            'logged in to github.com account' in
-            ((gh_auth_status.stdout | default('')) ~ (gh_auth_status.stderr | default(''))) | lower
-          - >-
-            'active account: true' in
-            ((gh_auth_status.stdout | default('')) ~ (gh_auth_status.stderr | default(''))) | lower
-          - >-
-            'git operations protocol: ssh' in
-            ((gh_auth_status.stdout | default('')) ~ (gh_auth_status.stderr | default(''))) | lower
-          - >-
-            'failed to log in' not in
-            ((gh_auth_status.stdout | default('')) ~ (gh_auth_status.stderr | default(''))) | lower
-        fail_msg: >-
-          expected gh auth status to report a healthy active github.com login using SSH;
-          rc={{ gh_auth_status.rc }} stdout={{ gh_auth_status.stdout | default('') }}
-          stderr={{ gh_auth_status.stderr | default('') }}
-
-    - name: Discover installed Cursor agent binary
-      ansible.builtin.shell: |
-        set -euo pipefail
-        export HOME="{{ agent_home }}"
-        export PATH="{{ agent_path }}"
-        if command -v agent >/dev/null 2>&1; then
-          command -v agent
-        else
-          command -v cursor-agent
-        fi
-      args:
-        executable: /bin/bash
-      become: true
-      become_user: "{{ agent_user }}"
-      environment:
-        HOME: "{{ agent_home }}"
-        PATH: "{{ agent_path }}"
-      register: cursor_binary
-      changed_when: false
-
-    - name: Verify cursor binary responds
-      ansible.builtin.command: "{{ cursor_binary.stdout }} --version"
+    - name: Verify Codex binary responds
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_codex_binary_name }}"
+          - --version
       become: true
       become_user: "{{ agent_user }}"
       environment:
@@ -464,7 +429,22 @@
         PATH: "{{ agent_path }}"
       changed_when: false
 
-    - name: Verify Bun responds in cursor login shell
+    - name: Read Codex auth status
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_codex_binary_name }}"
+          - login
+          - status
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
+      register: codex_auth_status
+      changed_when: false
+      failed_when: false
+
+    - name: Verify Bun responds in agent login shell
       ansible.builtin.shell: |
         set -euo pipefail
         {{ agent_shell }} -lic 'bun --version'
@@ -476,48 +456,80 @@
         HOME: "{{ agent_home }}"
       changed_when: false
 
-    - name: List Bun global packages for cursor user
+    - name: Verify uv responds in agent login shell
+      ansible.builtin.shell: |
+        set -euo pipefail
+        {{ agent_shell }} -lic 'uv --version'
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      changed_when: false
+
+    - name: Verify Task responds in agent login shell
+      ansible.builtin.shell: |
+        set -euo pipefail
+        {{ agent_shell }} -lic 'task --version'
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      changed_when: false
+
+    - name: Verify mise responds in agent login shell
+      ansible.builtin.shell: |
+        set -euo pipefail
+        {{ agent_shell }} -lic 'mise --version'
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      changed_when: false
+
+    - name: Verify Omnara binary is on PATH in agent login shell
+      ansible.builtin.shell: |
+        set -euo pipefail
+        {{ agent_shell }} -lic 'command -v omnara'
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      changed_when: false
+
+    - name: Read Omnara auth status
       ansible.builtin.command:
         argv:
-          - "{{ agent_bun_binary_path }}"
-          - -g
-          - list
+          - "{{ agent_omnara_binary_name }}"
+          - auth
+          - status
       become: true
       become_user: "{{ agent_user }}"
       environment:
         HOME: "{{ agent_home }}"
         PATH: "{{ agent_path }}"
-      register: cursor_bun_global_packages
+      register: omnara_auth_status
       changed_when: false
+      failed_when: false
 
-    - name: Assert Bun global packages installed for cursor user
-      ansible.builtin.assert:
-        that:
-          - cursor_bun_global_packages.stdout is regex('(^|\\n|\\s)' ~ (item | regex_escape) ~ '(@|\\s|$)')
-        fail_msg: >-
-          expected Bun global package {{ item }} in bun -g list output;
-          got {{ cursor_bun_global_packages.stdout | default('') }}
-      loop: "{{ agent_bun_global_packages }}"
-
-    - name: Verify Codex responds for cursor user
-      ansible.builtin.command:
-        argv:
-          - codex
-          - --version
-      become: true
-      become_user: "{{ agent_user }}"
-      environment:
-        HOME: "{{ agent_home }}"
-        PATH: "{{ agent_path }}"
-      changed_when: false
-
-    - name: Verify Codex is on Bun PATH in cursor fish login shell
+    - name: Verify Codex is on PATH in agent fish login shell
       ansible.builtin.shell: |
         set -euo pipefail
         {{ agent_shell }} -lic '
           test (whoami) = "{{ agent_user }}"
-          test (command -v bun) = "{{ agent_bun_binary_path }}"
-          test (command -v codex) = "{{ agent_bun_bin_dir }}/codex"
+          command -v bun
+          command -v uv
+          command -v task
+          command -v mise
+          command -v codex
+          command -v omnara
           codex --version
           test -d "{{ agent_workspace_root }}"
         '
@@ -531,10 +543,10 @@
 
     - name: Stat Codex config
       ansible.builtin.stat:
-        path: "{{ agent_home }}/.codex/config.toml"
+        path: "{{ agent_codex_config_path }}"
       register: codex_config_stat
 
-    - name: Assert Codex config is managed
+    - name: Assert Codex config exists
       ansible.builtin.assert:
         that:
           - codex_config_stat.stat.exists
@@ -543,16 +555,31 @@
           - codex_config_stat.stat.mode == '0644'
           - codex_config_stat.stat.size > 0
         fail_msg: >-
-          expected {{ agent_home }}/.codex/config.toml to exist as a non-empty regular file
+          expected {{ agent_codex_config_path }} to exist as a non-empty regular file
           0644 owned by {{ agent_user }};
           got exists={{ codex_config_stat.stat.exists | default(false) }}
           mode={{ codex_config_stat.stat.mode | default('missing') }}
           owner={{ codex_config_stat.stat.pw_name | default('missing') }}
           size={{ codex_config_stat.stat.size | default('missing') }}
 
+    - name: Read Codex config
+      ansible.builtin.slurp:
+        src: "{{ agent_codex_config_path }}"
+      register: codex_config_content
+
+    - name: Assert managed Codex plugin config is present
+      ansible.builtin.assert:
+        that:
+          - "'[marketplaces.caveman-repo]' in (codex_config_content.content | b64decode)"
+          - "'[plugins.\"caveman@caveman-repo\"]' in (codex_config_content.content | b64decode)"
+          - "'[marketplaces.local-plugins]' in (codex_config_content.content | b64decode)"
+          - "'source = \"' ~ agent_codex_dir ~ '\"' in (codex_config_content.content | b64decode)"
+          - "'[plugins.\"code-review-graph@local-plugins\"]' in (codex_config_content.content | b64decode)"
+        fail_msg: "expected managed caveman and local plugin blocks in {{ agent_codex_config_path }}"
+
     - name: Stat Codex hooks
       ansible.builtin.stat:
-        path: "{{ agent_home }}/.codex/hooks.json"
+        path: "{{ agent_codex_dir }}/hooks.json"
       register: codex_hooks_stat
 
     - name: Assert Codex hooks are managed
@@ -564,94 +591,99 @@
           - codex_hooks_stat.stat.mode == '0644'
           - codex_hooks_stat.stat.size > 0
         fail_msg: >-
-          expected {{ agent_home }}/.codex/hooks.json to exist as a non-empty regular file
+          expected {{ agent_codex_dir }}/hooks.json to exist as a non-empty regular file
           0644 owned by {{ agent_user }};
           got exists={{ codex_hooks_stat.stat.exists | default(false) }}
           mode={{ codex_hooks_stat.stat.mode | default('missing') }}
           owner={{ codex_hooks_stat.stat.pw_name | default('missing') }}
           size={{ codex_hooks_stat.stat.size | default('missing') }}
 
-    - name: Stat synced agent skills directory
+    - name: Stat synced Codex skills directory
       ansible.builtin.stat:
-        path: "{{ agent_skills_dir }}"
-      register: agent_skills_dir_stat
+        path: "{{ agent_codex_skills_dir }}"
+      register: codex_skills_dir_stat
 
-    - name: Assert synced agent skills directory is managed
+    - name: Assert synced Codex skills directory is managed
       ansible.builtin.assert:
         that:
-          - agent_skills_dir_stat.stat.exists
-          - agent_skills_dir_stat.stat.isdir
-          - agent_skills_dir_stat.stat.pw_name == agent_user
-          - agent_skills_dir_stat.stat.mode == '0755'
+          - codex_skills_dir_stat.stat.exists
+          - codex_skills_dir_stat.stat.isdir
+          - codex_skills_dir_stat.stat.pw_name == agent_user
+          - codex_skills_dir_stat.stat.mode == '0755'
         fail_msg: >-
-          expected {{ agent_skills_dir }} to exist as a directory
+          expected {{ agent_codex_skills_dir }} to exist as a directory
           0755 owned by {{ agent_user }};
-          got exists={{ agent_skills_dir_stat.stat.exists | default(false) }}
-          mode={{ agent_skills_dir_stat.stat.mode | default('missing') }}
-          owner={{ agent_skills_dir_stat.stat.pw_name | default('missing') }}
+          got exists={{ codex_skills_dir_stat.stat.exists | default(false) }}
+          mode={{ codex_skills_dir_stat.stat.mode | default('missing') }}
+          owner={{ codex_skills_dir_stat.stat.pw_name | default('missing') }}
 
-    - name: Find synced agent skill definitions
+    - name: Find synced Codex skill definitions
       ansible.builtin.find:
-        paths: "{{ agent_skills_dir }}"
+        paths: "{{ agent_codex_skills_dir }}"
         patterns: SKILL.md
         recurse: true
         file_type: file
-      register: agent_skill_definitions
+      register: codex_skill_definitions
 
-    - name: Assert synced agent skills contain skill definitions
+    - name: Assert synced Codex skills contain skill definitions
       ansible.builtin.assert:
         that:
-          - agent_skill_definitions.matched > 0
+          - codex_skill_definitions.matched > 0
         fail_msg: >-
-          expected at least one SKILL.md under {{ agent_skills_dir }};
-          got {{ agent_skill_definitions.matched | default(0) }}
+          expected at least one SKILL.md under {{ agent_codex_skills_dir }};
+          got {{ codex_skill_definitions.matched | default(0) }}
 
-    - name: Stat excluded agent skills git metadata
+    - name: Stat synced Codex plugins directory
       ansible.builtin.stat:
-        path: "{{ agent_skills_dir }}/.git"
-      register: agent_skills_git_stat
+        path: "{{ agent_codex_plugins_dir }}"
+      register: codex_plugins_dir_stat
 
-    - name: Assert synced agent skills exclude git metadata
+    - name: Assert synced Codex plugins directory is managed
       ansible.builtin.assert:
         that:
-          - not agent_skills_git_stat.stat.exists
-        fail_msg: "expected {{ agent_skills_dir }}/.git to be absent"
+          - codex_plugins_dir_stat.stat.exists
+          - codex_plugins_dir_stat.stat.isdir
+          - codex_plugins_dir_stat.stat.pw_name == agent_user
+          - codex_plugins_dir_stat.stat.mode == '0755'
+        fail_msg: >-
+          expected {{ agent_codex_plugins_dir }} to exist as a directory
+          0755 owned by {{ agent_user }};
+          got exists={{ codex_plugins_dir_stat.stat.exists | default(false) }}
+          mode={{ codex_plugins_dir_stat.stat.mode | default('missing') }}
+          owner={{ codex_plugins_dir_stat.stat.pw_name | default('missing') }}
 
-    - name: Verify Node.js responds in cursor login shell
-      ansible.builtin.shell: |
-        set -euo pipefail
-        {{ agent_shell }} -lic 'node --version'
-      args:
-        executable: /bin/bash
-      become: true
-      become_user: "{{ agent_user }}"
-      environment:
-        HOME: "{{ agent_home }}"
-      changed_when: false
+    - name: Find synced Codex plugin definitions
+      ansible.builtin.find:
+        paths: "{{ agent_codex_plugins_dir }}"
+        patterns: .codex-plugin
+        recurse: true
+        file_type: directory
+      register: codex_plugin_definitions
 
-    - name: Verify npm responds in cursor login shell
-      ansible.builtin.shell: |
-        set -euo pipefail
-        {{ agent_shell }} -lic 'npm --version'
-      args:
-        executable: /bin/bash
-      become: true
-      become_user: "{{ agent_user }}"
-      environment:
-        HOME: "{{ agent_home }}"
-      changed_when: false
+    - name: Assert synced Codex plugins contain plugin definitions
+      ansible.builtin.assert:
+        that:
+          - codex_plugin_definitions.matched > 0
+        fail_msg: >-
+          expected at least one .codex-plugin directory under {{ agent_codex_plugins_dir }};
+          got {{ codex_plugin_definitions.matched | default(0) }}
 
-    - name: Verify Task responds in cursor login shell
-      ansible.builtin.shell: |
-        set -euo pipefail
-        {{ agent_shell }} -lic 'task --version'
-      args:
-        executable: /bin/bash
-      become: true
-      become_user: "{{ agent_user }}"
-      environment:
-        HOME: "{{ agent_home }}"
-      changed_when: false
+    - name: Assert excluded Codex plugin paths are absent
+      ansible.builtin.stat:
+        path: "{{ agent_codex_plugins_dir }}/{{ item }}"
+      loop:
+        - cache
+        - .plugin-appserver
+        - .remote-plugin-install-staging
+        - .DS_Store
+      register: codex_excluded_plugin_paths
+
+    - name: Verify excluded Codex plugin paths are absent
+      ansible.builtin.assert:
+        that:
+          - not item.stat.exists
+        fail_msg: "expected {{ item.stat.path }} to be absent"
+      loop: "{{ codex_excluded_plugin_paths.results }}"
 
     - name: Verify fish responds
       ansible.builtin.command:
@@ -660,7 +692,7 @@
           - --version
       changed_when: false
 
-    - name: Verify fish config loads for cursor
+    - name: Verify fish config loads for agent
       ansible.builtin.shell: |
         set -euo pipefail
         fish -i -c 'functions -q fish_prompt; printf "__FISH_CONFIG_OK__\n"'
@@ -670,9 +702,9 @@
       become_user: "{{ agent_user }}"
       environment:
         HOME: "{{ agent_home }}"
-      register: cursor_fish_config
+      register: agent_fish_config
       changed_when: false
-      failed_when: "'__FISH_CONFIG_OK__' not in cursor_fish_config.stdout"
+      failed_when: "'__FISH_CONFIG_OK__' not in agent_fish_config.stdout"
 
     - name: Verify scc responds
       ansible.builtin.command:

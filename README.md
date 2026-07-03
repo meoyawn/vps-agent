@@ -2,7 +2,7 @@
 
 Run the agent on a VPS so you can close your laptop.
 
-**vps-agent** provisions an Ubuntu VPS for agent work, focused on [Codex remote connections](https://developers.openai.com/codex/remote-connections). It also sets up a persistent **tmux** shell, **mosh** support, tightened [**sshd** defaults](ansible/roles/sshd/), [Zed remote projects](https://zed.dev/docs/remote-development), and [Cursor Agent CLI](https://cursor.com/blog/cli).
+**vps-agent** provisions an Ubuntu 24.04 ARM64 or x86_64 VPS for agent work, focused on [Codex remote connections](https://developers.openai.com/codex/remote-connections). It also sets up a persistent **tmux** shell, **mosh** support, tightened [**sshd** defaults](ansible/roles/sshd/), Docker, Bun, uv, Task, mise, Omnara, and local Codex skills/plugins.
 
 ## Prerequisites
 
@@ -16,46 +16,34 @@ Run the agent on a VPS so you can close your laptop.
   uv tool install ansible-lint
   ```
 
-- A local, gitignored GitHub token variable at
-  **`ansible/group_vars/all/vault.yaml`** as **`vault_github_token`**. It is
-  used during provisioning to authenticate `gh` for the `cursor` user and
-  register the VPS SSH key with GitHub.
-- A local SSH key at **`~/.ssh/id_rsa`** with public key **`~/.ssh/id_rsa.pub`**. The playbook authorizes this public key for the `cursor` user so Codex can SSH to the VPS directly.
+- Local SSH keys under **`~/.ssh/`**. Provisioning syncs only `id_*` private keys and `*.pub` public keys, then builds `/home/agent/.ssh/authorized_keys` from the synced public keys.
+- Local fish config under **`~/.config/fish/`** if you want it mirrored to the VPS.
+- Local Codex skills/plugins under **`~/.codex/skills/`** and **`~/.codex/plugins/`** if you want them mirrored to the VPS.
 - A local SSH config entry for the Codex remote connection:
 
   ```sshconfig
   Host devbox-agent
     HostName <your-vps-ip-or-hostname>
-    User cursor
-    IdentityFile ~/.ssh/id_rsa
+    User agent
+    IdentityFile ~/.ssh/id_ed25519
     IdentitiesOnly yes
   ```
 
 ### VPS
 
-- Provision **ARM64 Ubuntu 24.04**.
+- Provision **Ubuntu 24.04** on **ARM64** or **x86_64**.
 
 ## Apply config
 
-1. An inventory file at **`ansible/inventory/hosts.yaml`**. It is gitignored on purpose. Copy the example and edit it for your VPS; the group must be **`vps`**—that is what the playbooks target.
+1. Create an inventory file at **`ansible/inventory/hosts.yaml`**. It is gitignored on purpose. Copy the example and edit it for your VPS; the group must be **`vps`** because the playbooks target that group.
 
    ```sh
    cp ansible/inventory/hosts.example.yaml ansible/inventory/hosts.yaml
    ```
 
-2. Create the gitignored local variable file at
-   **`ansible/group_vars/all/vault.yaml`**. Do not commit this file; each user
-   should create their own. Set **`vault_github_token`** to a token with these
-   scopes:
-   - `admin:public_key`
-   - `read:org`
-   - `repo`
+2. Run **`task apply`** once the inventory is ready.
 
-   ```sh
-   cp ansible/group_vars/all/vault.example.yaml ansible/group_vars/all/vault.yaml
-   ```
-
-3. Run **`task apply`** once the inventory and local token variable are ready.
+3. Run **`task verify`** after provisioning changes.
 
 ## Workflow
 
@@ -66,31 +54,26 @@ Priorities:
 3. `mosh` + `tmux`.
 4. Zed remote projects.
 
-For Codex remote sessions, use the **`devbox-agent`** SSH host and choose a remote project folder under **`/home/cursor/workspace/`**. Verify the connection from the laptop with:
+For Codex remote sessions, use the **`devbox-agent`** SSH host and choose a remote project folder under **`/home/agent/workspace/`**. Verify the connection from the laptop with:
 
 ```sh
 ssh devbox-agent 'fish -lic "whoami; command -v bun; command -v codex; codex --version; test -d ~/workspace"'
 ```
 
-- Clone repositories under **`~/workspace/`** on the VPS. That directory is created for the `cursor` user so project paths stay in one place. GitHub SSH remotes support `git clone`, `git pull`, and `git push`; see [Pushing To GitHub From The VPS](docs/github.md).
-- Use as many **tmux** windows (tab-like) or **panes** (splits in the same window) as you need—each can be a different repo or working tree—without juggling multiple SSH sessions.
+- Clone repositories under **`~/workspace/`** on the VPS. That directory is created for the `agent` user so project paths stay in one place.
+- Manual login is expected for `gh`, Codex, and Omnara after provisioning.
+- Use as many **tmux** windows (tab-like) or **panes** (splits in the same window) as you need, each in a different repo or working tree.
 - Use **mosh** when mobile or unstable networking matters, then attach to **tmux** inside it. See [orphaned Mosh notes](docs/orphaned-mosh.md) if disconnects leave stale sessions.
 - Zed remote projects are supported, but lowest priority here. Current tooling is still undercooked: Zed remote can orphan `codex-acp` on disconnect and brick the session. See [Zed notes](docs/zed.md).
-- Cursor Agent CLI is installed for users who still want `agent` on the VPS.
 
 If sessions wedge or disconnected agents leave processes behind, look in [docs](docs/). Known cases include Codex desktop app leaving orphaned processes on disconnect and `codex` inside `tmux` sometimes breaking; see [tmux notes](docs/tmux.md).
 
 ### Linux user vs tmux session
 
-For shell sessions, run **`task tmux`**; [Taskfile](Taskfile.yaml) connects as Linux user `cursor` and attaches tmux session `macos`.
+For shell sessions, run **`task tmux`**; [Taskfile](Taskfile.yaml) connects as Linux user `agent` and attaches tmux session `macos`.
 
-For Moshi/mosh clients, rely on the Linux user being `cursor`, not on a fixed tmux session name. Mobile clients may attach existing tmux sessions without giving us full control over the session name.
+For Moshi/mosh clients, rely on the Linux user being `agent`, not on a fixed tmux session name. Mobile clients may attach existing tmux sessions without giving us full control over the session name.
 
 ## Maintenance
 
-- **`task update`** — Updates packages on the already-provisioned host (separate playbook).
-
-## Alternatives
-
-- [Cursor self-hosted cloud agents](https://cursor.com/blog/self-hosted-cloud-agents) are undercooked: as of **April 4, 2026**, they could not even autocomplete files.
-- [Agent Client Protocol (ACP)](https://agentclientprotocol.com/get-started/introduction#overview) remote agents are still **work in progress**.
+- **`task update`** — Updates packages and user-scoped tools on the already-provisioned host.

@@ -1,4 +1,4 @@
-- name: Apply cursor tmux config
+- name: Apply agent tmux config
   become: true
   become_user: "{{ agent_user }}"
   ansible.builtin.shell: |

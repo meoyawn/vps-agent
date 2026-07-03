@@ -1,10 +1,9 @@
----
 - name: Install fish package
   ansible.builtin.apt:
     name: fish
     state: present
 
-- name: Ensure cursor user login shell is fish
+- name: Ensure agent user login shell is fish
   ansible.builtin.user:
     name: "{{ agent_user }}"
     shell: "{{ agent_shell }}"
@@ -18,35 +17,34 @@
     mode: "0755"
   loop:
     - "{{ agent_home }}/.config"
-    - "{{ agent_home }}/.config/fish"
-    - "{{ agent_home }}/.config/fish/conf.d"
-    - "{{ agent_home }}/.config/fish/completions"
+    - "{{ agent_fish_config_dir }}"
+    - "{{ agent_fish_config_dir }}/conf.d"
+    - "{{ agent_fish_config_dir }}/completions"
+
+- name: Sync controller fish config
+  ansible.posix.synchronize:
+    src: "{{ ansible_controller_fish_config_dir }}/"
+    dest: "{{ agent_fish_config_dir }}/"
+    archive: true
+    owner: false
+    group: false
+    perms: false
+    rsync_opts:
+      - --exclude=.git/
+      - --exclude=conf.d/agent_env.fish
+
+- name: Ensure synced fish config is owned by agent
+  ansible.builtin.file:
+    path: "{{ agent_fish_config_dir }}"
+    state: directory
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
+    recurse: true
 
 - name: Install fish environment config
   ansible.builtin.template:
-    src: conf.d/cursor_env.fish.j2
-    dest: "{{ agent_home }}/.config/fish/conf.d/cursor_env.fish"
+    src: conf.d/agent_env.fish.j2
+    dest: "{{ agent_fish_env_config_path }}"
     owner: "{{ agent_user }}"
     group: "{{ agent_group }}"
     mode: "0644"
-
-- name: Install curated fish config
-  ansible.builtin.copy:
-    src: "{{ item.src }}"
-    dest: "{{ agent_home }}/.config/fish/{{ item.dest }}"
-    owner: "{{ agent_user }}"
-    group: "{{ agent_group }}"
-    mode: "0644"
-  loop:
-    - src: config.fish
-      dest: config.fish
-    - src: conf.d/fish_frozen_key_bindings.fish
-      dest: conf.d/fish_frozen_key_bindings.fish
-    - src: conf.d/fish_frozen_theme.fish
-      dest: conf.d/fish_frozen_theme.fish
-    - src: completions/ast-grep.fish
-      dest: completions/ast-grep.fish
-    - src: completions/bun.fish
-      dest: completions/bun.fish
-    - src: completions/task.fish
-      dest: completions/task.fish

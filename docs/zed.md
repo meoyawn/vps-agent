@@ -7,13 +7,13 @@ agent runtime for this repo.
 ## Current State
 
 Zed remote can connect to the VPS and open projects under
-`/home/cursor/workspace/`. Use the same SSH target as the Codex desktop app:
+`/home/agent/workspace/`. Use the same SSH target as the Codex desktop app:
 
 ```sshconfig
 Host devbox-agent
   HostName <your-vps-ip-or-hostname>
-  User cursor
-  IdentityFile ~/.ssh/id_rsa
+  User agent
+  IdentityFile ~/.ssh/id_ed25519
   IdentitiesOnly yes
 ```
 
@@ -27,7 +27,7 @@ Open the Remote Projects dialog with `ctrl-cmd-shift-o` on macOS or
 project path. For direct CLI opens:
 
 ```sh
-zed ssh://devbox-agent/home/cursor/workspace/
+zed ssh://devbox-agent/home/agent/workspace/
 ```
 
 Avoid opening very broad paths such as `/` or `~`; Zed recommends opening a

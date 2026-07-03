@@ -4,7 +4,7 @@
 
 When a Codex TUI is running inside `tmux`, run recovery commands on the host
 where the `tmux` server lives, as the same Unix user that owns the session.
-For this VPS, that usually means the `cursor` user.
+For this VPS, that usually means the `agent` user.
 
 Find panes:
 
@@ -12,14 +12,13 @@ Find panes:
 tmux list-panes -a -F '#S:#I.#P #{pane_current_command}'
 ```
 
-If the pane command is `node`, it may still be Codex. Codex runs through a
-Node.js process.
+If the pane command is `codex`, it may be the Codex TUI.
 
 Send keys to a pane:
 
 ```sh
-tmux send-keys -t cursor:1.1 C-m
-tmux send-keys -t cursor:1.1 Enter
+tmux send-keys -t macos:1.1 C-m
+tmux send-keys -t macos:1.1 Enter
 ```
 
 If Enter only inserts newlines, Codex is still receiving input, but the prompt
@@ -51,7 +50,7 @@ codex resume --all
 Start a fresh `tmux` window when the old pane is wedged:
 
 ```sh
-tmux new-window -t cursor -n codex
+tmux new-window -t macos -n codex
 ```
 
 ## Moshi And Ghostty

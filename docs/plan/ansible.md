@@ -15,7 +15,7 @@ Ansible YAML/Jinja variable references well enough for this job.
 2. Search exact variable references across Ansible:
 
    ```sh
-   rg -n '\b(cursor_user|cursor_home|cursor_path)\b' ansible
+   rg -n '\b(agent_user|agent_home|agent_path)\b' ansible
    ```
 
 3. Count refs per variable and identify external consumers:
@@ -32,7 +32,7 @@ Ansible YAML/Jinja variable references well enough for this job.
 4. Count refs per consumer file:
 
    ```sh
-   fish -lc 'set pattern "cursor_user|cursor_home|cursor_path"
+   fish -lc 'set pattern "agent_user|agent_home|agent_path"
    for f in (rg -l --pcre2 "\\b($pattern)\\b" ansible --glob "!ansible/group_vars/all/main.yaml" | sort)
        set count (rg -o --pcre2 "\\b($pattern)\\b" $f | wc -l | string trim)
        printf "%3s %s\n" $count $f

@@ -1,13 +1,4 @@
----
-- name: Ensure Codex config directory exists
-  ansible.builtin.file:
-    path: "{{ agent_home }}/.codex"
-    state: directory
-    owner: "{{ agent_user }}"
-    group: "{{ agent_group }}"
-    mode: "0755"
-
-- name: Ensure agent skills directory exists
+- name: Ensure Codex directories exist
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
@@ -15,54 +6,80 @@
     group: "{{ agent_group }}"
     mode: "0755"
   loop:
-    - "{{ agent_home }}/.agents"
-    - "{{ agent_skills_dir }}"
+    - "{{ agent_codex_dir }}"
+    - "{{ agent_codex_skills_dir }}"
+    - "{{ agent_codex_plugins_dir }}"
 
-- name: Seed Codex config if missing
-  ansible.builtin.copy:
-    src: config.toml
-    dest: "{{ agent_home }}/.codex/config.toml"
-    owner: "{{ agent_user }}"
-    group: "{{ agent_group }}"
-    mode: "0644"
-    force: false
-
-- name: Ensure Codex config metadata
+- name: Ensure Codex config exists
   ansible.builtin.file:
-    path: "{{ agent_home }}/.codex/config.toml"
-    state: file
+    path: "{{ agent_codex_config_path }}"
+    state: touch
     owner: "{{ agent_user }}"
     group: "{{ agent_group }}"
     mode: "0644"
+    modification_time: preserve
+    access_time: preserve
 
-- name: Sync controller agent skills
+- name: Manage Codex caveman plugin config
+  ansible.builtin.blockinfile:
+    path: "{{ agent_codex_config_path }}"
+    marker: "# {mark} ANSIBLE MANAGED CAVEMAN PLUGIN"
+    block: "{{ agent_codex_caveman_config_block }}"
+
+- name: Manage Codex local plugin config
+  ansible.builtin.blockinfile:
+    path: "{{ agent_codex_config_path }}"
+    marker: "# {mark} ANSIBLE MANAGED LOCAL PLUGINS"
+    block: "{{ agent_codex_local_plugins_config_block }}"
+
+- name: Sync controller Codex skills
   ansible.posix.synchronize:
-    src: "{{ ansible_controller_agent_skills_dir }}/"
-    dest: "{{ agent_skills_dir }}/"
+    src: "{{ ansible_controller_codex_skills_dir }}/"
+    dest: "{{ agent_codex_skills_dir }}/"
+    archive: true
+    owner: false
+    group: false
+    perms: false
+
+- name: Sync controller Codex plugins
+  ansible.posix.synchronize:
+    src: "{{ ansible_controller_codex_plugins_dir }}/"
+    dest: "{{ agent_codex_plugins_dir }}/"
     archive: true
     owner: false
     group: false
     perms: false
     rsync_opts:
-      - "--exclude=.git/"
+      - --exclude=cache/
+      - --exclude=.plugin-appserver/
+      - --exclude=.remote-plugin-install-staging/
+      - --exclude=.DS_Store
 
-- name: Ensure synced agent skills are owned by cursor
+- name: Remove excluded Codex plugin cache paths
   ansible.builtin.file:
-    path: "{{ agent_skills_dir }}"
+    path: "{{ agent_codex_plugins_dir }}/{{ item }}"
+    state: absent
+  loop:
+    - cache
+    - .plugin-appserver
+    - .remote-plugin-install-staging
+    - .DS_Store
+
+- name: Ensure synced Codex content is owned by agent
+  ansible.builtin.file:
+    path: "{{ item }}"
     state: directory
     owner: "{{ agent_user }}"
     group: "{{ agent_group }}"
     recurse: true
-
-- name: Ensure synced agent skills do not include git metadata
-  ansible.builtin.file:
-    path: "{{ agent_skills_dir }}/.git"
-    state: absent
+  loop:
+    - "{{ agent_codex_skills_dir }}"
+    - "{{ agent_codex_plugins_dir }}"
 
 - name: Install Codex hooks
   ansible.builtin.copy:
     src: hooks.json
-    dest: "{{ agent_home }}/.codex/hooks.json"
+    dest: "{{ agent_codex_dir }}/hooks.json"
     owner: "{{ agent_user }}"
     group: "{{ agent_group }}"
     mode: "0644"

@@ -1,8 +1,7 @@
----
-- name: Configure self-hosted Cursor agent
+- name: Configure self-hosted agent VPS
   hosts: vps
   become: true
-  gather_facts: false
+  gather_facts: true
   handlers:
     - name: Reload ufw if active
       ansible.builtin.shell: |
@@ -15,6 +14,14 @@
       changed_when: false
 
   tasks:
+    - name: Assert CPU architecture is supported
+      ansible.builtin.assert:
+        that:
+          - agent_detected_arch in agent_arch_map
+        fail_msg: >-
+          unsupported CPU architecture {{ agent_detected_arch | default('unknown') }};
+          supported architectures are {{ agent_arch_map.keys() | list | join(', ') }}
+
     - name: Apply host-level provisioning as root
       block:
         - name: Install base packages
@@ -27,19 +34,19 @@
             name: "{{ uninstall_packages }}"
             state: absent
 
-        - name: Create cursor group explicitly for deterministic provisioning across distros
+        - name: Create agent group explicitly for deterministic provisioning across distros
           ansible.builtin.group:
             name: "{{ agent_group }}"
             state: present
 
-        - name: Create cursor user
+        - name: Create agent user
           ansible.builtin.user:
             name: "{{ agent_user }}"
             group: "{{ agent_group }}"
             create_home: true
             state: present
 
-        - name: Allow cursor user to run Docker
+        - name: Allow agent user to run Docker
           ansible.builtin.user:
             name: "{{ agent_user }}"
             groups:
@@ -53,7 +60,7 @@
             state: link
             force: true
 
-        - name: Ensure cursor home exists
+        - name: Ensure agent home exists
           ansible.builtin.file:
             path: "{{ agent_home }}"
             state: directory
@@ -61,7 +68,7 @@
             group: "{{ agent_group }}"
             mode: "0755"
 
-        - name: Ensure cursor workspace root exists
+        - name: Ensure agent workspace root exists
           ansible.builtin.file:
             path: "{{ agent_workspace_root }}"
             state: directory
@@ -69,22 +76,84 @@
             group: "{{ agent_group }}"
             mode: "0755"
 
-        - name: Ensure cursor .ssh directory exists
+        - name: Ensure agent SSH directory exists
           ansible.builtin.file:
-            path: "{{ agent_github_ssh_dir }}"
+            path: "{{ agent_ssh_dir }}"
             state: directory
             owner: "{{ agent_user }}"
             group: "{{ agent_group }}"
             mode: "0700"
 
-        - name: Authorize controller SSH key for cursor login
-          ansible.builtin.lineinfile:
-            path: "{{ agent_cursor_authorized_keys_path }}"
-            line: "{{ lookup('file', ansible_controller_ssh_public_key_path) }}"
-            create: true
+        - name: Sync controller SSH keys
+          ansible.posix.synchronize:
+            src: "{{ ansible_controller_ssh_dir }}/"
+            dest: "{{ agent_ssh_dir }}/"
+            archive: true
+            owner: false
+            group: false
+            perms: false
+            rsync_opts:
+              - --include=id_*
+              - --include=*.pub
+              - --exclude=config
+              - --exclude=known_hosts*
+              - --exclude=authorized_keys
+              - --exclude=*
+
+        - name: Find synced SSH key files
+          ansible.builtin.find:
+            paths: "{{ agent_ssh_dir }}"
+            patterns:
+              - id_*
+              - "*.pub"
+            file_type: file
+          register: agent_synced_ssh_key_files
+
+        - name: Ensure synced SSH keys are owned by agent
+          ansible.builtin.file:
+            path: "{{ item.path }}"
+            owner: "{{ agent_user }}"
+            group: "{{ agent_group }}"
+            mode: "{{ '0644' if item.path.endswith('.pub') else '0600' }}"
+          loop: "{{ agent_synced_ssh_key_files.files }}"
+
+        - name: Find synced SSH public keys
+          ansible.builtin.find:
+            paths: "{{ agent_ssh_dir }}"
+            patterns: "*.pub"
+            file_type: file
+          register: agent_synced_ssh_public_keys
+
+        - name: Assert at least one SSH public key is available
+          ansible.builtin.assert:
+            that:
+              - agent_synced_ssh_public_keys.matched > 0
+            fail_msg: "expected at least one public key copied from {{ ansible_controller_ssh_dir }}"
+
+        - name: Read synced SSH public keys
+          ansible.builtin.slurp:
+            src: "{{ item.path }}"
+          loop: "{{ agent_synced_ssh_public_keys.files | sort(attribute='path') }}"
+          register: agent_synced_ssh_public_key_contents
+
+        - name: Build authorized keys from synced public keys
+          ansible.builtin.set_fact:
+            agent_authorized_keys_content: >-
+              {{ agent_synced_ssh_public_key_contents.results
+                | map(attribute='content')
+                | map('b64decode')
+                | map('trim')
+                | reject('equalto', '')
+                | unique
+                | join('\n') ~ '\n' }}
+
+        - name: Generate authorized keys from synced public keys
+          ansible.builtin.copy:
+            dest: "{{ agent_authorized_keys_path }}"
             owner: "{{ agent_user }}"
             group: "{{ agent_group }}"
             mode: "0600"
+            content: "{{ agent_authorized_keys_content }}"
 
         - name: Allow unconfined user namespaces for Codex sandbox on Ubuntu 24.04
           ansible.builtin.copy:
@@ -195,104 +264,21 @@
       ansible.builtin.import_role:
         name: codex
 
-    - name: Apply cursor-scoped tooling as cursor
+    - name: Apply agent-scoped tooling as agent
       become: true
       become_user: "{{ agent_user }}"
       block:
-        - name: Manage Bun tooling for cursor user
-          block:
-            - name: Install Bun for cursor user
-              ansible.builtin.shell: |
-                set -euo pipefail
-                curl -fsSL "{{ agent_bun_install_url }}" | bash
-              args:
-                executable: /bin/bash
-                creates: "{{ agent_bun_binary_path }}"
-              environment:
-                HOME: "{{ agent_home }}"
-
-            - name: List Bun global packages for cursor user
-              ansible.builtin.command:
-                argv:
-                  - "{{ agent_bun_binary_path }}"
-                  - -g
-                  - list
-              environment:
-                HOME: "{{ agent_home }}"
-                PATH: "{{ agent_path }}"
-              register: cursor_bun_global_packages
-              changed_when: false
-
-            - name: Install Bun global packages for cursor user
-              ansible.builtin.command:
-                argv:
-                  - "{{ agent_bun_binary_path }}"
-                  - i
-                  - -g
-                  - "{{ item }}"
-              environment:
-                HOME: "{{ agent_home }}"
-                PATH: "{{ agent_path }}"
-              loop: "{{ agent_bun_global_packages }}"
-              when: >-
-                cursor_bun_global_packages.stdout is not regex(
-                  '(^|\\n|\\s)' ~ (item | regex_escape) ~ '(@|\\s|$)'
-                )
-
-        - name: Install Volta for cursor user
+        - name: Install Bun for agent user
           ansible.builtin.shell: |
             set -euo pipefail
-            curl -fsSL "{{ agent_volta_install_url }}" | bash -s -- --skip-setup
+            curl -fsSL "{{ agent_bun_install_url }}" | bash
           args:
             executable: /bin/bash
-            creates: "{{ agent_volta_binary_path }}"
+            creates: "{{ agent_bun_binary_path }}"
           environment:
             HOME: "{{ agent_home }}"
-            VOLTA_HOME: "{{ agent_volta_home }}"
 
-        - name: Ensure cursor tool PATH is available in login shells
-          ansible.builtin.blockinfile:
-            path: "{{ agent_profile_path }}"
-            create: true
-            marker: "# {mark} ANSIBLE MANAGED CURSOR PATH"
-            block: |
-              export UV_TOOL_BIN_DIR="{{ agent_local_bin_dir }}"
-              export UV_TOOL_DIR="{{ agent_uv_tool_dir }}"
-              export BUN_INSTALL="{{ agent_bun_install_root }}"
-              export VOLTA_HOME="{{ agent_volta_home }}"
-              case ":$PATH:" in
-                  *:"{{ agent_volta_bin_dir }}":*) ;;
-                  *) PATH="{{ agent_volta_bin_dir }}:$PATH" ;;
-              esac
-              case ":$PATH:" in
-                  *:"{{ agent_bun_bin_dir }}":*) ;;
-                  *) PATH="{{ agent_bun_bin_dir }}:$PATH" ;;
-              esac
-              case ":$PATH:" in
-                  *:"{{ agent_local_bin_dir }}":*) ;;
-                  *) PATH="{{ agent_local_bin_dir }}:$PATH" ;;
-              esac
-              export PATH
-
-        - name: Install Node.js via Volta for cursor user
-          ansible.builtin.shell: |
-            set -euo pipefail
-            if "{{ agent_volta_binary_path }}" which node >/dev/null 2>&1; then
-              echo __VOLTA_NODE_UNCHANGED__
-              exit 0
-            fi
-            "{{ agent_volta_binary_path }}" install node
-            echo __VOLTA_NODE_CHANGED__
-          args:
-            executable: /bin/bash
-          environment:
-            HOME: "{{ agent_home }}"
-            PATH: "{{ agent_path }}"
-            VOLTA_HOME: "{{ agent_volta_home }}"
-          register: cursor_volta_node_install
-          changed_when: "'__VOLTA_NODE_CHANGED__' in cursor_volta_node_install.stdout_lines"
-
-        - name: Install uv for cursor user
+        - name: Install uv for agent user
           ansible.builtin.shell: |
             set -euo pipefail
             curl -fsSL "{{ agent_uv_install_url }}" | env UV_UNMANAGED_INSTALL="{{ agent_local_bin_dir }}" sh
@@ -302,7 +288,7 @@
           environment:
             HOME: "{{ agent_home }}"
 
-        - name: Install Task for cursor user
+        - name: Install Task for agent user
           ansible.builtin.shell: |
             set -euo pipefail
             sh -c "$(curl -fsSL --location "{{ agent_task_install_url }}")" -- -d -b "{{ agent_local_bin_dir }}"
@@ -312,162 +298,77 @@
           environment:
             HOME: "{{ agent_home }}"
 
-        - name: Install Cursor CLI for cursor user
+        - name: Install Codex for agent user
           ansible.builtin.shell: |
             set -euo pipefail
-            if [ -x "{{ agent_local_bin_dir }}/agent" ] || [ -x "{{ agent_local_bin_dir }}/cursor-agent" ]; then
-              echo __CURSOR_CLI_UNCHANGED__
+            if command -v "{{ agent_codex_binary_name }}" >/dev/null 2>&1; then
+              echo __CODEX_UNCHANGED__
               exit 0
             fi
-            curl -fsS "{{ agent_install_url }}" | bash
-            echo __CURSOR_CLI_CHANGED__
+            curl -fsSL "{{ agent_codex_install_url }}" | CODEX_NON_INTERACTIVE=1 sh
+            echo __CODEX_CHANGED__
           args:
             executable: /bin/bash
           environment:
             HOME: "{{ agent_home }}"
-          register: cursor_cli_install
-          changed_when: "'__CURSOR_CLI_CHANGED__' in cursor_cli_install.stdout_lines"
+            PATH: "{{ agent_path }}"
+          register: agent_codex_install
+          changed_when: "'__CODEX_CHANGED__' in agent_codex_install.stdout_lines"
 
-        - name: Generate GitHub deploy key if missing
-          ansible.builtin.command:
-            argv:
-              - ssh-keygen
-              - -t
-              - ed25519
-              - -f
-              - "{{ agent_github_ssh_private_key_path }}"
-              - -N
-              - ""
-              - -C
-              - "{{ inventory_hostname }}"
+        - name: Install mise for agent user
+          ansible.builtin.shell: |
+            set -euo pipefail
+            if command -v mise >/dev/null 2>&1; then
+              echo __MISE_UNCHANGED__
+              exit 0
+            fi
+            curl "{{ agent_mise_install_url }}" | sh
+            echo __MISE_CHANGED__
           args:
-            creates: "{{ agent_github_ssh_private_key_path }}"
+            executable: /bin/bash
+          environment:
+            HOME: "{{ agent_home }}"
+            PATH: "{{ agent_path }}"
+          register: agent_mise_install
+          changed_when: "'__MISE_CHANGED__' in agent_mise_install.stdout_lines"
 
-        - name: Pin GitHub SSH host keys for cursor
-          ansible.builtin.blockinfile:
-            path: "{{ agent_github_ssh_known_hosts_path }}"
-            create: true
-            owner: "{{ agent_user }}"
-            group: "{{ agent_group }}"
-            mode: "0644"
-            marker: "# {mark} ANSIBLE MANAGED github.com"
-            block: "{{ github_known_hosts_lines | join('\n') }}"
+        - name: Install Omnara for agent user
+          ansible.builtin.shell: |
+            set -euo pipefail
+            if command -v "{{ agent_omnara_binary_name }}" >/dev/null 2>&1; then
+              echo __OMNARA_UNCHANGED__
+              exit 0
+            fi
+            curl -fsSL "{{ agent_omnara_install_url }}" | bash
+            echo __OMNARA_CHANGED__
+          args:
+            executable: /bin/bash
+          environment:
+            HOME: "{{ agent_home }}"
+            PATH: "{{ agent_path }}"
+          register: agent_omnara_install
+          changed_when: "'__OMNARA_CHANGED__' in agent_omnara_install.stdout_lines"
 
-        - name: Ensure SSH uses GitHub deploy key for github.com
+        - name: Ensure agent tool PATH is available in login shells
           ansible.builtin.blockinfile:
-            path: "{{ agent_github_ssh_dir }}/config"
+            path: "{{ agent_profile_path }}"
             create: true
-            owner: "{{ agent_user }}"
-            group: "{{ agent_group }}"
-            mode: "0600"
-            marker: "# {mark} ANSIBLE MANAGED github.com"
+            marker: "# {mark} ANSIBLE MANAGED AGENT PATH"
             block: |
-              Host github.com
-                HostName github.com
-                User git
-                IdentityFile {{ agent_github_ssh_private_key_path }}
-                IdentitiesOnly yes
-
-        - name: Check whether GitHub already accepts this SSH key
-          ansible.builtin.command:
-            argv:
-              - ssh
-              - -o
-              - BatchMode=yes
-              - -o
-              - StrictHostKeyChecking=yes
-              - -T
-              - git@github.com
-          register: cursor_github_ssh_precheck
-          failed_when: false
-          changed_when: false
-
-        - name: Ensure gh config directory exists
-          ansible.builtin.file:
-            path: "{{ agent_gh_config_dir }}"
-            state: directory
-            owner: "{{ agent_user }}"
-            group: "{{ agent_group }}"
-            mode: "0700"
-
-        - name: Check gh auth status for cursor user
-          ansible.builtin.command:
-            argv:
-              - gh
-              - auth
-              - status
-              - --hostname
-              - github.com
-          environment:
-            HOME: "{{ agent_home }}"
-            GH_CONFIG_DIR: "{{ agent_gh_config_dir }}"
-          register: cursor_gh_auth_status
-          failed_when: false
-          changed_when: false
-
-        - name: Authenticate gh for cursor user from vaulted token
-          ansible.builtin.command:
-            argv:
-              - gh
-              - auth
-              - login
-              - --hostname
-              - github.com
-              - --git-protocol
-              - ssh
-              - --with-token
-            stdin: "{{ vault_github_token }}"
-          environment:
-            HOME: "{{ agent_home }}"
-            GH_CONFIG_DIR: "{{ agent_gh_config_dir }}"
-          register: cursor_gh_auth_login
-          no_log: true
-          changed_when: cursor_gh_auth_login.rc == 0
-          when: >-
-            'logged in to github.com account' not in
-            (
-              (cursor_gh_auth_status.stdout | default('')) ~
-              (cursor_gh_auth_status.stderr | default(''))
-            ) | lower or
-            'active account: true' not in
-            (
-              (cursor_gh_auth_status.stdout | default('')) ~
-              (cursor_gh_auth_status.stderr | default(''))
-            ) | lower or
-            'git operations protocol: ssh' not in
-            (
-              (cursor_gh_auth_status.stdout | default('')) ~
-              (cursor_gh_auth_status.stderr | default(''))
-            ) | lower or
-            'failed to log in' in
-            (
-              (cursor_gh_auth_status.stdout | default('')) ~
-              (cursor_gh_auth_status.stderr | default(''))
-            ) | lower
-
-        - name: Add SSH public key to GitHub account
-          when: >-
-            'successfully authenticated' not in
-            ((cursor_github_ssh_precheck.stdout | default('')) ~ (cursor_github_ssh_precheck.stderr | default(''))) | lower
-          ansible.builtin.command:
-            argv:
-              - gh
-              - ssh-key
-              - add
-              - "{{ agent_github_ssh_public_key_path }}"
-              - --title
-              - "{{ inventory_hostname }}"
-          environment:
-            HOME: "{{ agent_home }}"
-            GH_CONFIG_DIR: "{{ agent_gh_config_dir }}"
-          register: gh_ssh_key_add
-          no_log: true
-          changed_when: gh_ssh_key_add.rc == 0
-          failed_when: >-
-            gh_ssh_key_add.rc != 0 and
-            'already' not in (gh_ssh_key_add.stderr | default('') | lower) and
-            'already' not in (gh_ssh_key_add.stdout | default('') | lower) and
-            'in use' not in (gh_ssh_key_add.stderr | default('') | lower) and
-            'in use' not in (gh_ssh_key_add.stdout | default('') | lower) and
-            '422' not in (gh_ssh_key_add.stderr | default('')) and
-            '422' not in (gh_ssh_key_add.stdout | default(''))
+              export UV_TOOL_BIN_DIR="{{ agent_local_bin_dir }}"
+              export UV_TOOL_DIR="{{ agent_uv_tool_dir }}"
+              export BUN_INSTALL="{{ agent_bun_install_root }}"
+              export MISE_DATA_DIR="{{ agent_mise_data_dir }}"
+              case ":$PATH:" in
+                  *:"{{ agent_local_bin_dir }}":*) ;;
+                  *) PATH="{{ agent_local_bin_dir }}:$PATH" ;;
+              esac
+              case ":$PATH:" in
+                  *:"{{ agent_bun_bin_dir }}":*) ;;
+                  *) PATH="{{ agent_bun_bin_dir }}:$PATH" ;;
+              esac
+              case ":$PATH:" in
+                  *:"{{ agent_mise_shims_dir }}":*) ;;
+                  *) PATH="{{ agent_mise_shims_dir }}:$PATH" ;;
+              esac
+              export PATH

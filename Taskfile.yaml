@@ -59,12 +59,13 @@ tasks:
       - task smoke
       - echo "verification passed"
     sources:
-      - "{{.HOME}}/.agents/skills/**/*"
+      - "{{.HOME}}/.codex/skills/**/*"
+      - "{{.HOME}}/.codex/plugins/**/*"
       - "{{.ANSIBLE_DIR}}/**/*"
       - exclude: "{{.ANSIBLE_DIR}}/update.yaml"
 
   ssh:
-    desc: SSH to first host in TARGET using ansible_user + ansible_host from inventory (typically root; cursor user has no keys by default)
+    desc: SSH to first host in TARGET using ansible_user + ansible_host from inventory (typically root)
     cmds:
       - |
         host_spec=$(python3 -c "
@@ -81,6 +82,6 @@ tasks:
         exec ssh "$host_spec" {{.CLI_ARGS}}
 
   tmux:
-    desc: SSH to first host in TARGET as cursor, then attach or create a tmux session
+    desc: SSH to first host in TARGET as agent, then attach or create a tmux session
     cmds:
       - bun run scripts/tmux.ts

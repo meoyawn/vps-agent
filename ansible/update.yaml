@@ -1,5 +1,4 @@
----
-- name: Update apt packages, Cursor agent, and Bun globals on cursor hosts
+- name: Update apt packages and agent user tools
   hosts: vps
   become: true
   gather_facts: false
@@ -12,60 +11,54 @@
         autoclean: true
         cache_valid_time: 3600
 
-    - name: Update Cursor agent
-      become: true
-      become_user: "{{ agent_user }}"
-      environment:
-        HOME: "{{ agent_home }}"
-        PATH: "{{ agent_path }}"
-      block:
-        - name: Discover installed Cursor agent binary
-          ansible.builtin.shell: |
-            set -euo pipefail
-            if command -v agent >/dev/null 2>&1; then
-              command -v agent
-            else
-              command -v cursor-agent
-            fi
-          args:
-            executable: /bin/bash
-          register: cursor_binary
-          changed_when: false
-
-        - name: Update Cursor agent to the latest available version
-          ansible.builtin.command:
-            argv:
-              - "{{ cursor_binary.stdout }}"
-              - update
-          changed_when: false
-
-        - name: Capture effective Cursor agent binary path after update
-          ansible.builtin.command:
-            argv:
-              - readlink
-              - -f
-              - "{{ cursor_binary.stdout }}"
-          register: cursor_binary_path_after
-          changed_when: false
-
-        - name: Assert Cursor agent resolves to a versioned install path
-          ansible.builtin.assert:
-            that:
-              - (cursor_binary_path_after.stdout | trim) is match(".*/cursor-agent/versions/.+/cursor-agent$")
-            fail_msg: >-
-              expected Cursor agent to resolve to a versioned install path, got
-              {{ cursor_binary_path_after.stdout | trim }}
-
-    - name: Update Bun global packages for cursor user
+    - name: Update Bun for agent user
       ansible.builtin.command:
         argv:
           - "{{ agent_bun_binary_path }}"
-          - update
-          - --global
-          - --latest
+          - upgrade
       become: true
       become_user: "{{ agent_user }}"
       environment:
         HOME: "{{ agent_home }}"
         PATH: "{{ agent_path }}"
       changed_when: false
+
+    - name: Update uv for agent user
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_uv_binary_path }}"
+          - self
+          - update
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
+      changed_when: false
+      failed_when: false
+
+    - name: Update Codex for agent user
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_codex_binary_name }}"
+          - update
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
+      changed_when: false
+      failed_when: false
+
+    - name: Update mise for agent user
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_mise_binary_path }}"
+          - self-update
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
+      changed_when: false
+      failed_when: false

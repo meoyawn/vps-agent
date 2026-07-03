@@ -1,24 +1,26 @@
----
-agent_user: cursor
-agent_group: cursor
-agent_home: "/home/{{ agent_user }}"
+agent_user: agent
+agent_group: agent
+agent_home: "{{ '/home/' ~ agent_user }}"
 agent_shell: /usr/bin/fish
 agent_workspace_root: "{{ agent_home }}/workspace"
 
-agent_bun_install_url: "https://bun.sh/install"
+agent_arch_map:
+  aarch64: arm64
+  arm64: arm64
+  x86_64: x86_64
+  amd64: x86_64
+agent_detected_arch: "{{ ansible_facts['architecture'] | default('') }}"
+agent_scc_arch: "{{ agent_arch_map[agent_detected_arch] | default('') }}"
+
+agent_local_bin_dir: "{{ agent_home }}/.local/bin"
+agent_profile_path: "{{ agent_home }}/.profile"
+
+agent_bun_install_url: https://bun.sh/install
 agent_bun_install_root: "{{ agent_home }}/.bun"
 agent_bun_bin_dir: "{{ agent_bun_install_root }}/bin"
 agent_bun_binary_path: "{{ agent_bun_bin_dir }}/bun"
-agent_bun_global_packages:
-  - "@openai/codex"
 
-ansible_controller_agent_skills_dir: "{{ lookup('env', 'HOME') | trim }}/.agents/skills"
-agent_skills_dir: "{{ agent_home }}/.agents/skills"
-
-agent_local_bin_dir: "{{ agent_home }}/.local/bin"
-agent_task_binary_path: "{{ agent_local_bin_dir }}/task"
-
-agent_uv_install_url: "https://astral.sh/uv/install.sh"
+agent_uv_install_url: https://astral.sh/uv/install.sh
 agent_uv_binary_path: "{{ agent_local_bin_dir }}/uv"
 agent_uv_tool_dir: "{{ agent_home }}/.local/share/uv/tools"
 agent_uv_environment:
@@ -27,69 +29,102 @@ agent_uv_environment:
   UV_TOOL_BIN_DIR: "{{ agent_local_bin_dir }}"
   UV_TOOL_DIR: "{{ agent_uv_tool_dir }}"
 
-# questionable stuff, using bun -g for now
-agent_volta_install_url: "https://get.volta.sh"
-agent_volta_home: "{{ agent_home }}/.volta"
-agent_volta_bin_dir: "{{ agent_volta_home }}/bin"
-agent_volta_binary_path: "{{ agent_volta_bin_dir }}/volta"
+agent_task_install_url: https://taskfile.dev/install.sh
+agent_task_binary_path: "{{ agent_local_bin_dir }}/task"
 
-agent_profile_path: "{{ agent_home }}/.profile"
+agent_codex_install_url: https://chatgpt.com/codex/install.sh
+agent_codex_binary_name: codex
+agent_codex_binary_path: "{{ agent_local_bin_dir }}/codex"
+
+agent_mise_install_url: https://mise.run
+agent_mise_data_dir: "{{ agent_home }}/.local/share/mise"
+agent_mise_shims_dir: "{{ agent_mise_data_dir }}/shims"
+agent_mise_binary_path: "{{ agent_local_bin_dir }}/mise"
+
+agent_omnara_install_url: https://omnara.com/install.sh
+agent_omnara_binary_name: omnara
+agent_omnara_binary_path: "{{ agent_local_bin_dir }}/omnara"
+
+agent_path: "{{ agent_local_bin_dir }}:{{ agent_bun_bin_dir }}:{{ agent_mise_shims_dir }}:/usr/local/bin:/usr/bin:/bin"
+
 agent_packages:
   - bash
-
-  # chromium runtime libraries
-  - libgtk-3-0t64
-  - libgbm1
-
-  # sandboxing for codex
   - bubblewrap
-
   - ca-certificates
   - curl
   - docker.io
   - docker-compose-v2
   - gh
   - git
+  - golang-go
+  - jq
+  - libgbm1
+  - libgtk-3-0t64
+  - mosh
   - openjdk-25-jdk-headless
   - openssh-client
-  - jq
-  - mosh
   - ripgrep
   - rsync
   - tmux
   - unzip
-  - golang-go
+
 uninstall_packages:
   - nodejs
   - npm
-agent_path: "{{ agent_local_bin_dir }}:{{ agent_bun_bin_dir }}:{{ agent_volta_bin_dir }}:/usr/local/bin:/usr/bin:/bin"
+
 agent_docker_compose_binary_path: /usr/libexec/docker/cli-plugins/docker-compose
 agent_docker_compose_compat_path: /usr/local/bin/docker-compose
 
-agent_install_url: "https://cursor.com/install"
+agent_scc_download_url: >-
+  https://github.com/boyter/scc/releases/latest/download/scc_Linux_{{ agent_scc_arch }}.tar.gz
 
-agent_task_install_url: "https://taskfile.dev/install.sh"
-agent_scc_download_url: "https://github.com/boyter/scc/releases/latest/download/scc_Linux_arm64.tar.gz"
-agent_github_ssh_dir: "{{ agent_home }}/.ssh"
-agent_github_ssh_private_key_path: "{{ agent_github_ssh_dir }}/id_github_vps_ed25519"
-agent_github_ssh_public_key_path: "{{ agent_github_ssh_private_key_path }}.pub"
-agent_github_ssh_known_hosts_path: "{{ agent_github_ssh_dir }}/known_hosts"
-agent_cursor_authorized_keys_path: "{{ agent_github_ssh_dir }}/authorized_keys"
-ansible_controller_ssh_public_key_path: "{{ lookup('env', 'HOME') | trim }}/.ssh/id_rsa.pub"
+ansible_controller_ssh_dir: "{{ lookup('env', 'HOME') | trim }}/.ssh"
+agent_ssh_dir: "{{ agent_home }}/.ssh"
+agent_authorized_keys_path: "{{ agent_ssh_dir }}/authorized_keys"
+
+ansible_controller_fish_config_dir: "{{ lookup('env', 'HOME') | trim }}/.config/fish"
+agent_fish_config_dir: "{{ agent_home }}/.config/fish"
+agent_fish_env_config_path: "{{ agent_fish_config_dir }}/conf.d/agent_env.fish"
+
+ansible_controller_codex_skills_dir: "{{ lookup('env', 'HOME') | trim }}/.codex/skills"
+ansible_controller_codex_plugins_dir: "{{ lookup('env', 'HOME') | trim }}/.codex/plugins"
+agent_codex_dir: "{{ agent_home }}/.codex"
+agent_codex_config_path: "{{ agent_codex_dir }}/config.toml"
+agent_codex_skills_dir: "{{ agent_codex_dir }}/skills"
+agent_codex_plugins_dir: "{{ agent_codex_dir }}/plugins"
+
 agent_gh_config_dir: "{{ agent_home }}/.config/gh"
-# https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints
-github_known_hosts_lines:
-  - github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
-  - >-
-    {{ 'github.com ecdsa-sha2-nistp256 '
-    ~ 'AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=' }}
-  - >-
-    {{ 'github.com ssh-rsa '
-    ~ 'AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9'
-    ~ 'j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BC'
-    ~ 'Zfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1'
-    ~ 'JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nG'
-    ~ 'rlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT'
-    ~ '4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+Ejqo'
-    ~ 'TwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/Wnw'
-    ~ 'H6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=' }}
+
+agent_codex_caveman_config_block: |
+  [marketplaces.caveman-repo]
+  last_updated = "2026-05-28T22:49:11Z"
+  last_revision = "ef6050c5e1848b6880ff47c32ade1a608a64f85e"
+  source_type = "git"
+  source = "https://github.com/JuliusBrussee/caveman.git"
+  ref = "v1.7.0"
+
+  [plugins."caveman@caveman-repo"]
+  enabled = true
+
+agent_codex_local_plugins_config_block: |
+  [marketplaces.local-plugins]
+  source_type = "local"
+  source = "{{ agent_codex_dir }}"
+
+  [plugins."ansible@local-plugins"]
+  enabled = true
+
+  [plugins."cloudflare@local-plugins"]
+  enabled = true
+
+  [plugins."code-review-graph@local-plugins"]
+  enabled = true
+
+  [plugins."legal-review@local-plugins"]
+  enabled = true
+
+  [plugins."postgres@local-plugins"]
+  enabled = true
+
+  [plugins."terraform@local-plugins"]
+  enabled = true
