@@ -52,11 +52,11 @@ tasks:
   verify:
     desc: Fast real-VPS verification loop
     cmds:
-      - task lint
-      - task syntax
-      - task apply
-      - task idempotence
-      - task smoke
+      - task: lint
+      - task: syntax
+      - task: apply
+      - task: idempotence
+      - task: smoke
       - echo "verification passed"
     sources:
       - "{{.HOME}}/.codex/skills/**/*"
