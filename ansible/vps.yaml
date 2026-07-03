@@ -89,38 +89,58 @@
             group: "{{ agent_group }}"
             mode: "0700"
 
-        - name: Sync controller SSH keys
+        - name: Sync controller SSH config and keys
           ansible.posix.synchronize:
             src: "{{ ansible_controller_ssh_dir }}/"
             dest: "{{ agent_ssh_dir }}/"
             archive: true
+            checksum: true
             owner: false
             group: false
             perms: false
+            rsync_path: "sudo -u {{ agent_user }} rsync"
             rsync_opts:
-              - --include=id_*
-              - --include=*.pub
-              - --exclude=config
               - --exclude=known_hosts*
               - --exclude=authorized_keys
-              - --exclude=*
+              - --exclude=*.sock
+              - --exclude=*.socket
+          changed_when: false
 
-        - name: Find synced SSH key files
+        - name: Find synced SSH files
           ansible.builtin.find:
             paths: "{{ agent_ssh_dir }}"
-            patterns:
-              - id_*
-              - "*.pub"
+            patterns: "*"
+            excludes:
+              - known_hosts*
+              - authorized_keys
             file_type: file
-          register: agent_synced_ssh_key_files
+          register: agent_synced_ssh_files
 
-        - name: Ensure synced SSH keys are owned by agent
+        - name: Ensure synced SSH files are owned by agent
           ansible.builtin.file:
             path: "{{ item.path }}"
             owner: "{{ agent_user }}"
             group: "{{ agent_group }}"
             mode: "{{ '0644' if item.path.endswith('.pub') else '0600' }}"
-          loop: "{{ agent_synced_ssh_key_files.files }}"
+          loop: "{{ agent_synced_ssh_files.files }}"
+
+        - name: Find synced SSH private keys
+          ansible.builtin.find:
+            paths: "{{ agent_ssh_dir }}"
+            patterns: "*"
+            excludes:
+              - "*.pub"
+              - config
+              - known_hosts*
+              - authorized_keys
+            file_type: file
+          register: agent_synced_ssh_private_keys
+
+        - name: Assert at least one SSH private key is available
+          ansible.builtin.assert:
+            that:
+              - agent_synced_ssh_private_keys.matched > 0
+            fail_msg: "expected at least one private key copied from {{ ansible_controller_ssh_dir }}"
 
         - name: Find synced SSH public keys
           ansible.builtin.find:
@@ -159,6 +179,14 @@
             group: "{{ agent_group }}"
             mode: "0600"
             content: "{{ agent_authorized_keys_content }}"
+
+        - name: Sync controller Git config
+          ansible.builtin.copy:
+            src: "{{ ansible_controller_gitconfig_path }}"
+            dest: "{{ agent_gitconfig_path }}"
+            owner: "{{ agent_user }}"
+            group: "{{ agent_group }}"
+            mode: "0644"
 
         - name: Allow unconfined user namespaces for Codex sandbox on Ubuntu 24.04
           ansible.builtin.copy:

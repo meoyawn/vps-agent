@@ -19,41 +19,107 @@
     mode: "0644"
     modification_time: preserve
     access_time: preserve
+  changed_when: false
 
-- name: Manage Codex caveman plugin config
-  ansible.builtin.blockinfile:
-    path: "{{ agent_codex_config_path }}"
-    marker: "# {mark} ANSIBLE MANAGED CAVEMAN PLUGIN"
-    block: "{{ agent_codex_caveman_config_block }}"
+- name: Normalize Codex plugin config
+  ansible.builtin.shell: |
+    set -eu
+    python3 - <<'PY'
+    import re
+    from pathlib import Path
 
-- name: Manage Codex local plugin config
-  ansible.builtin.blockinfile:
-    path: "{{ agent_codex_config_path }}"
-    marker: "# {mark} ANSIBLE MANAGED LOCAL PLUGINS"
-    block: "{{ agent_codex_local_plugins_config_block }}"
+    path = Path("{{ agent_codex_config_path }}")
+    text = path.read_text()
+
+    managed_markers = {
+        "# BEGIN ANSIBLE MANAGED CAVEMAN PLUGIN",
+        "# END ANSIBLE MANAGED CAVEMAN PLUGIN",
+        "# BEGIN ANSIBLE MANAGED LOCAL PLUGINS",
+        "# END ANSIBLE MANAGED LOCAL PLUGINS",
+    }
+    managed_section = re.compile(
+        r'^\[(?:marketplaces\.(?:caveman-repo|local-plugins)|'
+        r'plugins\."(?:caveman@caveman-repo|[^"]+@local-plugins)")\]$'
+    )
+
+    lines = text.splitlines()
+    kept = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+
+        if line in managed_markers:
+            index += 1
+            continue
+
+        if managed_section.match(line):
+            index += 1
+            while index < len(lines):
+                next_line = lines[index]
+                if (
+                    next_line.startswith("[")
+                    or next_line.startswith("# BEGIN ANSIBLE MANAGED ")
+                    or next_line.startswith("# END ANSIBLE MANAGED ")
+                ):
+                    break
+                index += 1
+            continue
+
+        kept.append(line)
+        index += 1
+
+    base = "\n".join(kept).strip()
+    caveman_block = {{ agent_codex_caveman_config_block | trim | to_json }}
+    local_plugins_block = {{ agent_codex_local_plugins_config_block | trim | to_json }}
+    managed_blocks = [
+        "# BEGIN ANSIBLE MANAGED CAVEMAN PLUGIN\n"
+        + caveman_block
+        + "\n# END ANSIBLE MANAGED CAVEMAN PLUGIN",
+        "# BEGIN ANSIBLE MANAGED LOCAL PLUGINS\n"
+        + local_plugins_block
+        + "\n# END ANSIBLE MANAGED LOCAL PLUGINS",
+    ]
+    desired = ((base + "\n\n") if base else "") + "\n\n".join(managed_blocks) + "\n"
+
+    if text != desired:
+        path.write_text(desired)
+        print("__CODEX_CONFIG_CHANGED__")
+    else:
+        print("__CODEX_CONFIG_UNCHANGED__")
+    PY
+  args:
+    executable: /bin/sh
+  register: codex_config_normalize
+  changed_when: "'__CODEX_CONFIG_CHANGED__' in codex_config_normalize.stdout_lines"
 
 - name: Sync controller Codex skills
   ansible.posix.synchronize:
     src: "{{ ansible_controller_codex_skills_dir }}/"
     dest: "{{ agent_codex_skills_dir }}/"
     archive: true
+    checksum: true
     owner: false
     group: false
     perms: false
+    rsync_path: "sudo -u {{ agent_user }} rsync"
+  changed_when: false
 
 - name: Sync controller Codex plugins
   ansible.posix.synchronize:
     src: "{{ ansible_controller_codex_plugins_dir }}/"
     dest: "{{ agent_codex_plugins_dir }}/"
     archive: true
+    checksum: true
     owner: false
     group: false
     perms: false
+    rsync_path: "sudo -u {{ agent_user }} rsync"
     rsync_opts:
-      - --exclude=cache/
-      - --exclude=.plugin-appserver/
-      - --exclude=.remote-plugin-install-staging/
+      - --exclude=cache
+      - --exclude=.plugin-appserver
+      - --exclude=.remote-plugin-install-staging
       - --exclude=.DS_Store
+  changed_when: false
 
 - name: Remove excluded Codex plugin cache paths
   ansible.builtin.file:
@@ -64,6 +130,7 @@
     - .plugin-appserver
     - .remote-plugin-install-staging
     - .DS_Store
+  changed_when: false
 
 - name: Ensure synced Codex content is owned by agent
   ansible.builtin.file:

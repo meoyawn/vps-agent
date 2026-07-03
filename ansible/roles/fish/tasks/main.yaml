@@ -18,20 +18,23 @@
   loop:
     - "{{ agent_home }}/.config"
     - "{{ agent_fish_config_dir }}"
-    - "{{ agent_fish_config_dir }}/conf.d"
-    - "{{ agent_fish_config_dir }}/completions"
 
 - name: Sync controller fish config
   ansible.posix.synchronize:
     src: "{{ ansible_controller_fish_config_dir }}/"
     dest: "{{ agent_fish_config_dir }}/"
     archive: true
+    checksum: true
     owner: false
     group: false
     perms: false
+    rsync_path: "sudo -u {{ agent_user }} rsync"
     rsync_opts:
       - --exclude=.git/
-      - --exclude=conf.d/agent_env.fish
+      - --exclude=completions/
+      - --exclude=conf.d/
+      - --exclude=fish_variables
+  changed_when: false
 
 - name: Ensure synced fish config is owned by agent
   ansible.builtin.file:
@@ -40,6 +43,54 @@
     owner: "{{ agent_user }}"
     group: "{{ agent_group }}"
     recurse: true
+
+- name: Remove controller fish completions from agent
+  ansible.builtin.file:
+    path: "{{ agent_fish_config_dir }}/completions"
+    state: absent
+
+- name: Stat agent fish universal variables
+  ansible.builtin.stat:
+    path: "{{ agent_fish_config_dir }}/fish_variables"
+  register: fish_variables_stat
+
+- name: Read agent fish universal variables
+  ansible.builtin.slurp:
+    src: "{{ agent_fish_config_dir }}/fish_variables"
+  register: fish_variables_content
+  when: fish_variables_stat.stat.exists
+
+- name: Remove controller fish universal variables from agent
+  ansible.builtin.file:
+    path: "{{ agent_fish_config_dir }}/fish_variables"
+    state: absent
+  when:
+    - fish_variables_stat.stat.exists
+    - "'SETUVAR fish_color_' not in (fish_variables_content.content | b64decode)"
+  changed_when: false
+
+- name: Ensure agent fish conf.d directory exists
+  ansible.builtin.file:
+    path: "{{ agent_fish_config_dir }}/conf.d"
+    state: directory
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
+    mode: "0755"
+
+- name: Find controller fish conf.d entries on agent
+  ansible.builtin.find:
+    paths: "{{ agent_fish_config_dir }}/conf.d"
+    file_type: any
+    hidden: true
+    excludes:
+      - agent_env.fish
+  register: fish_conf_d_entries
+
+- name: Remove controller fish conf.d entries from agent
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ fish_conf_d_entries.files }}"
 
 - name: Install fish environment config
   ansible.builtin.template:

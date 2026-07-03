@@ -81,6 +81,10 @@ agent_scc_download_url: >-
 ansible_controller_ssh_dir: "{{ lookup('env', 'HOME') | trim }}/.ssh"
 agent_ssh_dir: "{{ agent_home }}/.ssh"
 agent_authorized_keys_path: "{{ agent_ssh_dir }}/authorized_keys"
+agent_ssh_config_path: "{{ agent_ssh_dir }}/config"
+
+ansible_controller_gitconfig_path: "{{ lookup('env', 'HOME') | trim }}/.gitconfig"
+agent_gitconfig_path: "{{ agent_home }}/.gitconfig"
 
 ansible_controller_fish_config_dir: "{{ lookup('env', 'HOME') | trim }}/.config/fish"
 agent_fish_config_dir: "{{ agent_home }}/.config/fish"

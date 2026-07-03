@@ -250,8 +250,12 @@
     - name: Find synced SSH private keys
       ansible.builtin.find:
         paths: "{{ agent_ssh_dir }}"
-        patterns: id_*
-        excludes: "*.pub"
+        patterns: "*"
+        excludes:
+          - "*.pub"
+          - config
+          - known_hosts*
+          - authorized_keys
         file_type: file
       register: agent_synced_private_keys
 
@@ -265,6 +269,66 @@
           got mode={{ item.mode | default('missing') }} owner={{ item.pw_name | default('missing') }}
       loop: "{{ agent_synced_private_keys.files }}"
 
+    - name: Stat agent SSH config
+      ansible.builtin.stat:
+        path: "{{ agent_ssh_config_path }}"
+      register: agent_ssh_config_stat
+
+    - name: Assert agent SSH config permissions
+      ansible.builtin.assert:
+        that:
+          - agent_ssh_config_stat.stat.exists
+          - agent_ssh_config_stat.stat.isreg
+          - agent_ssh_config_stat.stat.mode == '0600'
+          - agent_ssh_config_stat.stat.pw_name == agent_user
+        fail_msg: >-
+          expected {{ agent_ssh_config_path }} to exist as a regular file
+          0600 owned by {{ agent_user }};
+          got exists={{ agent_ssh_config_stat.stat.exists | default(false) }}
+          mode={{ agent_ssh_config_stat.stat.mode | default('missing') }}
+          owner={{ agent_ssh_config_stat.stat.pw_name | default('missing') }}
+
+    - name: Read GitHub SSH config for agent
+      ansible.builtin.command:
+        argv:
+          - ssh
+          - -G
+          - github.com
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      register: agent_github_ssh_config
+      changed_when: false
+
+    - name: Assert GitHub SSH config uses synced identity
+      ansible.builtin.assert:
+        that:
+          - "'user git' in agent_github_ssh_config.stdout_lines"
+          - "'identitiesonly yes' in agent_github_ssh_config.stdout_lines"
+          - >-
+            agent_github_ssh_config.stdout_lines
+            | select('match', '^identityfile (' ~ agent_ssh_dir ~ '/|~/.ssh/)')
+            | list
+            | length > 0
+        fail_msg: >-
+          expected GitHub SSH config for {{ agent_user }} to use synced
+          private keys under {{ agent_ssh_dir }};
+          got {{ agent_github_ssh_config.stdout_lines | default([]) }}
+
+    - name: Verify listenbox2 is readable over GitHub SSH
+      ansible.builtin.command:
+        argv:
+          - git
+          - ls-remote
+          - git@github.com:listenbox/listenbox2.git
+          - HEAD
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      changed_when: false
+
     - name: Find synced SSH public keys
       ansible.builtin.find:
         paths: "{{ agent_ssh_dir }}"
@@ -277,6 +341,45 @@
         that:
           - agent_synced_public_keys.matched > 0
         fail_msg: "expected at least one public key under {{ agent_ssh_dir }}"
+
+    - name: Stat synced Git config
+      ansible.builtin.stat:
+        path: "{{ agent_gitconfig_path }}"
+      register: agent_gitconfig_stat
+
+    - name: Assert synced Git config is managed
+      ansible.builtin.assert:
+        that:
+          - agent_gitconfig_stat.stat.exists
+          - agent_gitconfig_stat.stat.isreg
+          - agent_gitconfig_stat.stat.pw_name == agent_user
+          - agent_gitconfig_stat.stat.mode == '0644'
+          - agent_gitconfig_stat.stat.size > 0
+        fail_msg: >-
+          expected {{ agent_gitconfig_path }} to exist as a non-empty regular file
+          0644 owned by {{ agent_user }};
+          got exists={{ agent_gitconfig_stat.stat.exists | default(false) }}
+          mode={{ agent_gitconfig_stat.stat.mode | default('missing') }}
+          owner={{ agent_gitconfig_stat.stat.pw_name | default('missing') }}
+          size={{ agent_gitconfig_stat.stat.size | default('missing') }}
+
+    - name: Verify Git can create commits with global identity
+      ansible.builtin.shell: |
+        set -eu
+        repo="$(mktemp -d "{{ agent_home }}/.git-identity-verify.XXXXXX")"
+        trap 'rm -rf "$repo"' EXIT
+        cd "$repo"
+        git init --quiet
+        printf 'ok\n' > smoke.txt
+        git add smoke.txt
+        git commit --quiet -m "Verify Git identity"
+      args:
+        executable: /bin/sh
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      changed_when: false
 
     - name: Validate sshd configuration
       ansible.builtin.command:
@@ -328,6 +431,13 @@
           - xterm-ghostty
       changed_when: false
 
+    - name: Verify tmux 256-color terminfo is installed
+      ansible.builtin.command:
+        argv:
+          - infocmp
+          - tmux-256color
+      changed_when: false
+
     - name: Verify tmux wrapper is first on PATH
       ansible.builtin.command:
         argv:
@@ -376,6 +486,7 @@
       ansible.builtin.shell: |
         tmux -L vps-agent-key-verify -f "{{ agent_home }}/.tmux.conf" \
           start-server \; \
+          show-options -g default-terminal \; \
           show-options -s -g extended-keys \; \
           show-options -g terminal-features \; \
           list-keys -T root S-Enter \; \
@@ -392,6 +503,7 @@
     - name: Assert agent tmux modified-key and hyperlink settings
       ansible.builtin.assert:
         that:
+          - "'default-terminal tmux-256color' in agent_tmux_key_config.stdout_lines"
           - "'extended-keys always' in agent_tmux_key_config.stdout_lines"
           - agent_tmux_key_config.stdout is search('xterm-ghostty:extkeys:hyperlinks')
           - agent_tmux_key_config.stdout is search('S-Enter')
@@ -687,12 +799,96 @@
         fail_msg: "expected {{ agent_codex_plugins_dir }}/{{ item.item }} to be absent"
       loop: "{{ codex_excluded_plugin_paths.results }}"
 
+    - name: Verify Codex config and hooks load
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_codex_binary_name }}"
+          - debug
+          - prompt-input
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
+      changed_when: false
+
+    - name: Remove Codex smoke plugin cache paths
+      ansible.builtin.file:
+        path: "{{ agent_codex_plugins_dir }}/{{ item }}"
+        state: absent
+      loop:
+        - cache
+        - .plugin-appserver
+        - .remote-plugin-install-staging
+        - .DS_Store
+      changed_when: false
+
     - name: Verify fish responds
       ansible.builtin.command:
         argv:
           - fish
           - --version
       changed_when: false
+
+    - name: Stat excluded fish config paths
+      ansible.builtin.stat:
+        path: "{{ agent_fish_config_dir }}/{{ item }}"
+      loop:
+        - completions
+        - conf.d/orbstack.fish
+        - conf.d/rustup.fish
+      register: agent_excluded_fish_config_paths
+
+    - name: Assert excluded fish config paths are absent
+      ansible.builtin.assert:
+        that:
+          - not item.stat.exists
+        fail_msg: "expected {{ agent_fish_config_dir }}/{{ item.item }} to be absent"
+      loop: "{{ agent_excluded_fish_config_paths.results }}"
+
+    - name: Stat generated fish environment config
+      ansible.builtin.stat:
+        path: "{{ agent_fish_env_config_path }}"
+      register: agent_fish_env_config_stat
+
+    - name: Assert generated fish environment config exists
+      ansible.builtin.assert:
+        that:
+          - agent_fish_env_config_stat.stat.exists
+          - agent_fish_env_config_stat.stat.isreg
+          - agent_fish_env_config_stat.stat.pw_name == agent_user
+          - agent_fish_env_config_stat.stat.gr_name == agent_group
+        fail_msg: "expected generated fish env config at {{ agent_fish_env_config_path }}"
+
+    - name: Read agent fish prompt color variables
+      ansible.builtin.command:
+        argv:
+          - fish
+          - -i
+          - -c
+          - >-
+            printf '%s\n'
+            $fish_color_cwd
+            $fish_color_param
+            $fish_color_error
+            $fish_color_autosuggestion
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      register: agent_fish_color_variables
+      changed_when: false
+
+    - name: Assert agent fish prompt color variables
+      ansible.builtin.assert:
+        that:
+          - "'green' in agent_fish_color_variables.stdout_lines"
+          - "'cyan' in agent_fish_color_variables.stdout_lines"
+          - "'brred' in agent_fish_color_variables.stdout_lines"
+          - "'brblack' in agent_fish_color_variables.stdout_lines"
+        fail_msg: >-
+          expected fish prompt colors green/cyan/brred/brblack;
+          got {{ agent_fish_color_variables.stdout_lines | default([]) }}
 
     - name: Verify fish config loads for agent
       ansible.builtin.shell: |

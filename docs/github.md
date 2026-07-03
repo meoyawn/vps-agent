@@ -10,14 +10,19 @@ The setup is intentionally narrow: Git push works from the managed `agent` user 
 
 ## SSH keys
 
-Provisioning syncs keys from local `~/.ssh/` into `/home/agent/.ssh/`:
+Provisioning syncs SSH config and keys from local `~/.ssh/` into `/home/agent/.ssh/`:
 
-- Includes `id_*` private keys.
+- Includes `config`.
+- Includes private keys, including nonstandard names such as `id_*` and `*_ed25519`.
 - Includes `*.pub` public keys.
-- Excludes local `config`, `known_hosts*`, `authorized_keys`, and everything else.
+- Excludes `known_hosts*`, `authorized_keys`, sockets, and socket-like files.
 - Rebuilds `/home/agent/.ssh/authorized_keys` from the synced public keys.
 
-Remote GitHub host config is not generated. If you need a specific GitHub identity, manage it manually in the remote `agent` account.
+Provisioning preserves the synced SSH config, so GitHub host rules with `IdentityFile ~/.ssh/<key-name>` work on the VPS.
+
+## Git config
+
+Provisioning syncs local `~/.gitconfig` to `/home/agent/.gitconfig` so commits have the same author identity on the VPS. Keep local paths in that file portable, such as `~/.gitignore`, if the same value should work on both machines.
 
 ## GitHub CLI
 

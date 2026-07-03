@@ -3,6 +3,7 @@
   ansible.builtin.apt:
     name:
       - ncurses-bin
+      - ncurses-term
       - tmux
     state: present
 

@@ -3,6 +3,26 @@ set -gx UV_TOOL_DIR "{{ agent_uv_tool_dir }}"
 set -gx BUN_INSTALL "{{ agent_bun_install_root }}"
 set -gx MISE_DATA_DIR "{{ agent_mise_data_dir }}"
 
+if not set -q fish_color_cwd; or test -z "$fish_color_cwd"
+    set -g fish_color_cwd green
+end
+
+if not set -q fish_color_param; or test -z "$fish_color_param"
+    set -g fish_color_param cyan
+end
+
+if not set -q fish_color_error; or test -z "$fish_color_error"
+    set -g fish_color_error brred
+end
+
+if not set -q fish_color_comment; or test -z "$fish_color_comment"
+    set -g fish_color_comment brblack
+end
+
+if not set -q fish_color_autosuggestion; or test -z "$fish_color_autosuggestion"
+    set -g fish_color_autosuggestion brblack
+end
+
 if not contains -- "{{ agent_local_bin_dir }}" $PATH
     set -gx PATH "{{ agent_local_bin_dir }}" $PATH
 end
