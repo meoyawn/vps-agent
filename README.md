@@ -12,7 +12,7 @@ Run the agent on a VPS so you can close your laptop.
 - [**ansible-core**](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html) and [**ansible-lint**](https://ansible.readthedocs.io/projects/lint/). Recommended with [uv](https://docs.astral.sh/uv/):
 
   ```sh
-  uv tool install ansible-core
+  uv tool install ansible-core==2.21.0 --with mitogen==0.3.50 --force
   uv tool install ansible-lint
   ```
 
