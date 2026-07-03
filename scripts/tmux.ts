@@ -30,7 +30,7 @@ async function main(): Promise<0 | 1> {
   }
 
   const hostSpec = `agent@${ansibleHost}`;
-  const remoteCommand = "exec tmux -T extkeys new-session -A -s macos";
+  const remoteCommand = "exec tmux -T extkeys,hyperlinks new-session -A -s macos";
 
   await $`ssh -tt ${hostSpec} ${remoteCommand}`;
   return 0;

@@ -372,7 +372,7 @@
           - agent_tmux_config_stat.stat.size > 0
         fail_msg: "expected nonempty agent tmux config at {{ agent_home }}/.tmux.conf"
 
-    - name: Verify agent tmux modified-key settings
+    - name: Verify agent tmux modified-key and hyperlink settings
       ansible.builtin.shell: |
         tmux -L vps-agent-key-verify -f "{{ agent_home }}/.tmux.conf" \
           start-server \; \
@@ -389,15 +389,16 @@
       register: agent_tmux_key_config
       changed_when: false
 
-    - name: Assert agent tmux modified-key settings
+    - name: Assert agent tmux modified-key and hyperlink settings
       ansible.builtin.assert:
         that:
           - "'extended-keys always' in agent_tmux_key_config.stdout_lines"
-          - agent_tmux_key_config.stdout is search('xterm-ghostty:extkeys')
+          - agent_tmux_key_config.stdout is search('xterm-ghostty:extkeys:hyperlinks')
           - agent_tmux_key_config.stdout is search('S-Enter')
           - agent_tmux_key_config.stdout is search('send-keys Escape')
         fail_msg: >-
-          expected tmux config to preserve Shift+Enter via extended keys;
+          expected tmux config to preserve Shift+Enter via extended keys
+          and advertise OSC 8 hyperlinks;
           got {{ agent_tmux_key_config.stdout_lines | default([]) }}
 
     - name: Read gh auth status
