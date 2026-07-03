@@ -13,6 +13,10 @@
         executable: /bin/bash
       changed_when: false
 
+    - name: Validate sshd and reload ssh
+      become: true
+      ansible.builtin.import_tasks: roles/sshd/handlers/reload.yaml
+
   tasks:
     - name: Assert CPU architecture is supported
       ansible.builtin.assert:
@@ -28,6 +32,7 @@
           ansible.builtin.apt:
             name: "{{ agent_packages }}"
             state: present
+            update_cache: true
 
         - name: Uninstall conflicting system packages
           ansible.builtin.apt:

@@ -657,6 +657,7 @@
         paths: "{{ agent_codex_plugins_dir }}"
         patterns: .codex-plugin
         recurse: true
+        hidden: true
         file_type: directory
       register: codex_plugin_definitions
 
@@ -682,7 +683,7 @@
       ansible.builtin.assert:
         that:
           - not item.stat.exists
-        fail_msg: "expected {{ item.stat.path }} to be absent"
+        fail_msg: "expected {{ agent_codex_plugins_dir }}/{{ item.item }} to be absent"
       loop: "{{ codex_excluded_plugin_paths.results }}"
 
     - name: Verify fish responds
