@@ -149,3 +149,11 @@
     owner: "{{ agent_user }}"
     group: "{{ agent_group }}"
     mode: "0644"
+
+- name: Sync controller Codex agents override
+  ansible.builtin.copy:
+    src: "{{ ansible_controller_codex_agents_override_path }}"
+    dest: "{{ agent_codex_agents_override_path }}"
+    owner: "{{ agent_user }}"
+    group: "{{ agent_group }}"
+    mode: "0644"

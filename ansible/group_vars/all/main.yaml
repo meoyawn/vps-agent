@@ -92,8 +92,10 @@ agent_fish_env_config_path: "{{ agent_fish_config_dir }}/conf.d/agent_env.fish"
 
 ansible_controller_codex_skills_dir: "{{ lookup('env', 'HOME') | trim }}/.codex/skills"
 ansible_controller_codex_plugins_dir: "{{ lookup('env', 'HOME') | trim }}/.codex/plugins"
+ansible_controller_codex_agents_override_path: "{{ lookup('env', 'HOME') | trim }}/.codex/AGENTS.override.md"
 agent_codex_dir: "{{ agent_home }}/.codex"
 agent_codex_config_path: "{{ agent_codex_dir }}/config.toml"
+agent_codex_agents_override_path: "{{ agent_codex_dir }}/AGENTS.override.md"
 agent_codex_skills_dir: "{{ agent_codex_dir }}/skills"
 agent_codex_plugins_dir: "{{ agent_codex_dir }}/plugins"
 

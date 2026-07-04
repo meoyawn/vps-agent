@@ -726,6 +726,27 @@
           owner={{ codex_hooks_stat.stat.pw_name | default('missing') }}
           size={{ codex_hooks_stat.stat.size | default('missing') }}
 
+    - name: Stat synced Codex agents override
+      ansible.builtin.stat:
+        path: "{{ agent_codex_agents_override_path }}"
+      register: codex_agents_override_stat
+
+    - name: Assert synced Codex agents override is managed
+      ansible.builtin.assert:
+        that:
+          - codex_agents_override_stat.stat.exists
+          - codex_agents_override_stat.stat.isreg
+          - codex_agents_override_stat.stat.pw_name == agent_user
+          - codex_agents_override_stat.stat.mode == '0644'
+          - codex_agents_override_stat.stat.size > 0
+        fail_msg: >-
+          expected {{ agent_codex_agents_override_path }} to exist as a non-empty regular file
+          0644 owned by {{ agent_user }};
+          got exists={{ codex_agents_override_stat.stat.exists | default(false) }}
+          mode={{ codex_agents_override_stat.stat.mode | default('missing') }}
+          owner={{ codex_agents_override_stat.stat.pw_name | default('missing') }}
+          size={{ codex_agents_override_stat.stat.size | default('missing') }}
+
     - name: Stat synced Codex skills directory
       ansible.builtin.stat:
         path: "{{ agent_codex_skills_dir }}"
