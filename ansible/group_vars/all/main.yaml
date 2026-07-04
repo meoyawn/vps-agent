@@ -9,8 +9,14 @@ agent_arch_map:
   arm64: arm64
   x86_64: x86_64
   amd64: x86_64
+agent_rtk_arch_map:
+  aarch64: aarch64
+  arm64: aarch64
+  x86_64: x86_64
+  amd64: x86_64
 agent_detected_arch: "{{ ansible_facts['architecture'] | default('') }}"
 agent_scc_arch: "{{ agent_arch_map[agent_detected_arch] | default('') }}"
+agent_rtk_arch: "{{ agent_rtk_arch_map[agent_detected_arch] | default('') }}"
 
 agent_local_bin_dir: "{{ agent_home }}/.local/bin"
 agent_profile_path: "{{ agent_home }}/.profile"
@@ -31,6 +37,10 @@ agent_uv_environment:
 
 agent_task_install_url: https://taskfile.dev/install.sh
 agent_task_binary_path: "{{ agent_local_bin_dir }}/task"
+
+agent_rtk_install_url: https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh
+agent_rtk_binary_name: rtk
+agent_rtk_binary_path: "{{ agent_local_bin_dir }}/rtk"
 
 agent_codex_install_url: https://chatgpt.com/codex/install.sh
 agent_codex_binary_name: codex

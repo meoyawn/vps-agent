@@ -332,6 +332,17 @@
           environment:
             HOME: "{{ agent_home }}"
 
+        - name: Install rtk for agent user
+          ansible.builtin.shell: |
+            set -euo pipefail
+            curl -fsSL "{{ agent_rtk_install_url }}" | env RTK_INSTALL_DIR="{{ agent_local_bin_dir }}" sh
+          args:
+            executable: /bin/bash
+            creates: "{{ agent_rtk_binary_path }}"
+          environment:
+            HOME: "{{ agent_home }}"
+            PATH: "{{ agent_path }}"
+
         - name: Install Codex for agent user
           ansible.builtin.shell: |
             set -euo pipefail

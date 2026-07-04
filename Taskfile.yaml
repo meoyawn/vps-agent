@@ -42,22 +42,32 @@ tasks:
       - "{{.ANSIBLE_DIR}}/**/*"
       - scripts/check-idempotence.sh
 
-  smoke:
+  verify:
     desc: Run smoke checks against the live VPS
     cmds:
       - ansible-playbook -i {{.INVENTORY}} {{.ANSIBLE_DIR}}/verify.yaml --limit {{.TARGET}}
     sources:
       - "{{.ANSIBLE_DIR}}/**/*"
 
-  verify:
+  lint-syntax:
+    run: once
+    deps:
+      - lint
+      - syntax
+
+  idempotence-verify:
+    run: once
+    deps:
+      - idempotence
+      - verify
+
+  check:
     desc: Fast real-VPS verification loop
     cmds:
-      - task: lint
-      - task: syntax
+      - task: lint-syntax
       - task: apply
-      - task: idempotence
-      - task: smoke
-      - echo "verification passed"
+      - task: idempotence-verify
+      - echo "check pass"
     sources:
       - "{{.HOME}}/.codex/skills/**/*"
       - "{{.HOME}}/.codex/plugins/**/*"

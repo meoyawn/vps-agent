@@ -8,6 +8,7 @@
         that:
           - agent_detected_arch in agent_arch_map
           - agent_scc_arch in ['arm64', 'x86_64']
+          - agent_rtk_arch in ['aarch64', 'x86_64']
         fail_msg: >-
           unsupported CPU architecture {{ agent_detected_arch | default('unknown') }};
           supported architectures are {{ agent_arch_map.keys() | list | join(', ') }}
@@ -609,6 +610,18 @@
         HOME: "{{ agent_home }}"
       changed_when: false
 
+    - name: Verify rtk responds in agent login shell
+      ansible.builtin.shell: |
+        set -euo pipefail
+        {{ agent_shell }} -lic 'rtk --version'
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      changed_when: false
+
     - name: Verify mise responds in agent login shell
       ansible.builtin.shell: |
         set -euo pipefail
@@ -656,6 +669,7 @@
           command -v bun
           command -v uv
           command -v task
+          command -v rtk
           command -v mise
           command -v codex
           command -v omnara
