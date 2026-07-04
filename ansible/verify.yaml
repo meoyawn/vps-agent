@@ -214,6 +214,22 @@
           expected kernel.apparmor_restrict_unprivileged_userns=0;
           got {{ apparmor_restrict_unprivileged_userns.stdout | default('missing') }}
 
+    - name: Read VM overcommit memory setting
+      ansible.builtin.command:
+        argv:
+          - cat
+          - /proc/sys/vm/overcommit_memory
+      register: vm_overcommit_memory
+      changed_when: false
+
+    - name: Assert VM overcommit memory is enabled
+      ansible.builtin.assert:
+        that:
+          - vm_overcommit_memory.stdout == '1'
+        fail_msg: >-
+          expected /proc/sys/vm/overcommit_memory=1;
+          got {{ vm_overcommit_memory.stdout | default('missing') }}
+
     - name: Verify agent can create user namespaces
       ansible.builtin.command:
         argv:

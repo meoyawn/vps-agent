@@ -188,11 +188,12 @@
             group: "{{ agent_group }}"
             mode: "0644"
 
-        - name: Allow unconfined user namespaces for Codex sandbox on Ubuntu 24.04
+        - name: Configure kernel sysctl values for agent workloads
           ansible.builtin.copy:
             dest: /etc/sysctl.d/60-codex-userns.conf
             mode: "0644"
             content: |
+              vm.overcommit_memory = 1
               kernel.apparmor_restrict_unprivileged_unconfined = 0
               kernel.apparmor_restrict_unprivileged_userns = 0
           register: codex_userns_sysctl
