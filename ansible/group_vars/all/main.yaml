@@ -4,6 +4,11 @@ agent_home: "{{ '/home/' ~ agent_user }}"
 agent_shell: /usr/bin/fish
 agent_workspace_root: "{{ agent_home }}/workspace"
 
+agent_swap_file_path: /swapfile
+agent_swap_file_size: 8G
+agent_swap_file_size_bytes: 8589934592
+agent_swappiness: 10
+
 agent_arch_map:
   aarch64: arm64
   arm64: arm64

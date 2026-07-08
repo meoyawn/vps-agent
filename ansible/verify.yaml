@@ -106,6 +106,46 @@
           - --version
       changed_when: false
 
+    - name: Stat agent swap file
+      ansible.builtin.stat:
+        path: "{{ agent_swap_file_path }}"
+      register: agent_swap_file_stat
+
+    - name: Assert agent swap file is provisioned
+      ansible.builtin.assert:
+        that:
+          - agent_swap_file_stat.stat.exists
+          - agent_swap_file_stat.stat.isreg
+          - agent_swap_file_stat.stat.mode == '0600'
+          - agent_swap_file_stat.stat.pw_name == 'root'
+          - agent_swap_file_stat.stat.gr_name == 'root'
+          - agent_swap_file_stat.stat.size | int >= agent_swap_file_size_bytes
+        fail_msg: >-
+          expected {{ agent_swap_file_path }} to be a root-owned 0600 regular
+          swap file at least {{ agent_swap_file_size_bytes }} bytes;
+          got exists={{ agent_swap_file_stat.stat.exists | default(false) }}
+          mode={{ agent_swap_file_stat.stat.mode | default('missing') }}
+          owner={{ agent_swap_file_stat.stat.pw_name | default('missing') }}
+          group={{ agent_swap_file_stat.stat.gr_name | default('missing') }}
+          size={{ agent_swap_file_stat.stat.size | default('missing') }}
+
+    - name: Read active swap files
+      ansible.builtin.command:
+        argv:
+          - swapon
+          - --noheadings
+          - --show=NAME
+      register: agent_active_swap_files
+      changed_when: false
+
+    - name: Assert agent swap file is active
+      ansible.builtin.assert:
+        that:
+          - agent_swap_file_path in agent_active_swap_files.stdout_lines
+        fail_msg: >-
+          expected {{ agent_swap_file_path }} in active swap files;
+          got {{ agent_active_swap_files.stdout_lines | default([]) }}
+
     - name: Verify Java responds
       ansible.builtin.command:
         argv:
@@ -116,7 +156,9 @@
     - name: Verify Playwright can install Chromium
       ansible.builtin.command:
         argv:
-          - bunx
+          - bun
+          - x
+          - --bun
           - playwright
           - install
           - chromium
@@ -230,6 +272,23 @@
         fail_msg: >-
           expected /proc/sys/vm/overcommit_memory=1;
           got {{ vm_overcommit_memory.stdout | default('missing') }}
+
+    - name: Read VM swappiness setting
+      ansible.builtin.command:
+        argv:
+          - sysctl
+          - -n
+          - vm.swappiness
+      register: vm_swappiness
+      changed_when: false
+
+    - name: Assert VM swappiness is configured
+      ansible.builtin.assert:
+        that:
+          - vm_swappiness.stdout == agent_swappiness | string
+        fail_msg: >-
+          expected vm.swappiness={{ agent_swappiness }};
+          got {{ vm_swappiness.stdout | default('missing') }}
 
     - name: Verify agent can create user namespaces
       ansible.builtin.command:

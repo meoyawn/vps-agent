@@ -58,6 +58,71 @@
               - docker
             append: true
 
+        - name: Check agent swap file
+          ansible.builtin.stat:
+            path: "{{ agent_swap_file_path }}"
+          register: agent_swap_file_stat
+
+        - name: Assert existing agent swap file is large enough
+          ansible.builtin.assert:
+            that:
+              - agent_swap_file_stat.stat.size | int >= agent_swap_file_size_bytes
+            fail_msg: >-
+              expected {{ agent_swap_file_path }} to be at least
+              {{ agent_swap_file_size_bytes }} bytes;
+              got {{ agent_swap_file_stat.stat.size | default('missing') }}
+          when: agent_swap_file_stat.stat.exists
+
+        - name: Create agent swap file
+          ansible.builtin.command:
+            argv:
+              - fallocate
+              - -l
+              - "{{ agent_swap_file_size }}"
+              - "{{ agent_swap_file_path }}"
+            creates: "{{ agent_swap_file_path }}"
+          register: agent_swap_file_create
+
+        - name: Secure agent swap file permissions
+          ansible.builtin.file:
+            path: "{{ agent_swap_file_path }}"
+            owner: root
+            group: root
+            mode: "0600"
+
+        - name: Format agent swap file
+          ansible.builtin.command:
+            argv:
+              - mkswap
+              - "{{ agent_swap_file_path }}"
+          when: agent_swap_file_create.changed
+
+        - name: Ensure agent swap file is mounted persistently
+          ansible.posix.mount:
+            src: "{{ agent_swap_file_path }}"
+            path: none
+            fstype: swap
+            opts: sw
+            dump: "0"
+            passno: "0"
+            state: present
+
+        - name: Read active swap files
+          ansible.builtin.command:
+            argv:
+              - swapon
+              - --noheadings
+              - --show=NAME
+          register: agent_active_swap_files
+          changed_when: false
+
+        - name: Enable agent swap file
+          ansible.builtin.command:
+            argv:
+              - swapon
+              - "{{ agent_swap_file_path }}"
+          when: agent_swap_file_path not in agent_active_swap_files.stdout_lines
+
         - name: Install docker-compose compatibility command
           ansible.builtin.file:
             src: "{{ agent_docker_compose_binary_path }}"
@@ -194,6 +259,7 @@
             mode: "0644"
             content: |
               vm.overcommit_memory = 1
+              vm.swappiness = {{ agent_swappiness }}
               kernel.apparmor_restrict_unprivileged_unconfined = 0
               kernel.apparmor_restrict_unprivileged_userns = 0
           register: codex_userns_sysctl
