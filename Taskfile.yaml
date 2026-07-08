@@ -62,18 +62,13 @@ tasks:
       - lint
       - syntax
 
-  idempotence-verify:
-    run: once
-    cmds:
-      - task: idempotence
-      - task: verify
-
   check:
     desc: Fast real-VPS verification loop
     cmds:
       - task: lint-syntax
       - task: apply
-      - task: idempotence-verify
+      - task: idempotence
+      - task: verify
       - echo "check pass"
     sources:
       - "{{.FISH_CONFIG_DIR}}/config.fish"
