@@ -955,6 +955,33 @@
         fail_msg: "expected {{ agent_fish_config_dir }}/{{ item.item }} to be absent"
       loop: "{{ agent_excluded_fish_config_paths.results }}"
 
+    - name: Stat synced fish config
+      ansible.builtin.stat:
+        path: "{{ agent_fish_config_dir }}/config.fish"
+      register: agent_fish_config_stat
+
+    - name: Read synced fish config
+      ansible.builtin.slurp:
+        src: "{{ agent_fish_config_dir }}/config.fish"
+      register: agent_fish_config_content
+      when: agent_fish_config_stat.stat.exists
+
+    - name: Assert synced fish config matches controller config
+      ansible.builtin.assert:
+        that:
+          - agent_fish_config_stat.stat.exists
+          - agent_fish_config_stat.stat.isreg
+          - agent_fish_config_stat.stat.pw_name == agent_user
+          - agent_fish_config_stat.stat.gr_name == agent_group
+          - >-
+            (agent_fish_config_content.content | default('') | b64decode | hash('sha256'))
+            == (lookup('ansible.builtin.file', ansible_controller_fish_config_dir ~ '/config.fish',
+            rstrip=False)
+            | hash('sha256'))
+        fail_msg: >-
+          expected {{ agent_fish_config_dir }}/config.fish to match
+          {{ ansible_controller_fish_config_dir }}/config.fish
+
     - name: Stat generated fish environment config
       ansible.builtin.stat:
         path: "{{ agent_fish_env_config_path }}"

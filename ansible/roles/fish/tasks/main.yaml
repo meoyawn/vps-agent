@@ -28,13 +28,17 @@
     owner: false
     group: false
     perms: false
+    delete: true
     rsync_path: "sudo -u {{ agent_user }} rsync"
     rsync_opts:
       - --exclude=.git/
       - --exclude=completions/
       - --exclude=conf.d/
       - --exclude=fish_variables
-  changed_when: false
+  register: fish_config_sync
+  retries: 3
+  delay: 5
+  until: fish_config_sync is succeeded
 
 - name: Ensure synced fish config is owned by agent
   ansible.builtin.file:

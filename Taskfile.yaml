@@ -5,6 +5,7 @@ vars:
   INVENTORY: '{{default (printf "%s/inventory/hosts.yaml" .ANSIBLE_DIR) .INVENTORY}}'
   PLAYBOOK: '{{default (printf "%s/vps.yaml" .ANSIBLE_DIR) .PLAYBOOK}}'
   TARGET: vps
+  FISH_CONFIG_DIR: "{{.HOME}}/.config/fish"
 
 tasks:
   codex: codex
@@ -27,6 +28,8 @@ tasks:
     cmds:
       - ansible-playbook -i {{.INVENTORY}} {{.PLAYBOOK}} --limit {{.TARGET}}
     sources:
+      - "{{.FISH_CONFIG_DIR}}/config.fish"
+      - "{{.FISH_CONFIG_DIR}}/**/*"
       - "{{.ANSIBLE_DIR}}/**/*"
 
   update:
@@ -39,6 +42,8 @@ tasks:
     cmds:
       - ./scripts/check-idempotence.sh {{.INVENTORY}} {{.PLAYBOOK}} {{.TARGET}}
     sources:
+      - "{{.FISH_CONFIG_DIR}}/config.fish"
+      - "{{.FISH_CONFIG_DIR}}/**/*"
       - "{{.ANSIBLE_DIR}}/**/*"
       - scripts/check-idempotence.sh
 
@@ -47,6 +52,8 @@ tasks:
     cmds:
       - ansible-playbook -i {{.INVENTORY}} {{.ANSIBLE_DIR}}/verify.yaml --limit {{.TARGET}}
     sources:
+      - "{{.FISH_CONFIG_DIR}}/config.fish"
+      - "{{.FISH_CONFIG_DIR}}/**/*"
       - "{{.ANSIBLE_DIR}}/**/*"
 
   lint-syntax:
@@ -57,9 +64,9 @@ tasks:
 
   idempotence-verify:
     run: once
-    deps:
-      - idempotence
-      - verify
+    cmds:
+      - task: idempotence
+      - task: verify
 
   check:
     desc: Fast real-VPS verification loop
@@ -69,6 +76,8 @@ tasks:
       - task: idempotence-verify
       - echo "check pass"
     sources:
+      - "{{.FISH_CONFIG_DIR}}/config.fish"
+      - "{{.FISH_CONFIG_DIR}}/**/*"
       - "{{.HOME}}/.codex/skills/**/*"
       - "{{.HOME}}/.codex/plugins/**/*"
       - "{{.ANSIBLE_DIR}}/**/*"
