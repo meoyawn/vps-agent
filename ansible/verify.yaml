@@ -84,6 +84,13 @@
           - --version
       changed_when: false
 
+    - name: Verify make responds
+      ansible.builtin.command:
+        argv:
+          - make
+          - --version
+      changed_when: false
+
     - name: Verify Docker runs a minimal container as agent
       ansible.builtin.command:
         argv:
@@ -720,6 +727,18 @@
       changed_when: false
       failed_when: false
 
+    - name: Verify Nub responds in agent login shell
+      ansible.builtin.shell: |
+        set -euo pipefail
+        {{ agent_shell }} -lic 'nub --version'
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      changed_when: false
+
     - name: Verify Codex is on PATH in agent fish login shell
       ansible.builtin.shell: |
         set -euo pipefail
@@ -732,6 +751,7 @@
           command -v mise
           command -v codex
           command -v omnara
+          command -v nub
           codex --version
           test -d "{{ agent_workspace_root }}"
         '

@@ -460,6 +460,17 @@
           register: agent_omnara_install
           changed_when: "'__OMNARA_CHANGED__' in agent_omnara_install.stdout_lines"
 
+        - name: Install Nub for agent user
+          ansible.builtin.shell: |
+            set -euo pipefail
+            curl -fsSL "{{ agent_nub_install_url }}" | bash
+          args:
+            executable: /bin/bash
+            creates: "{{ agent_nub_binary_path }}"
+          environment:
+            HOME: "{{ agent_home }}"
+            PATH: "{{ agent_path }}"
+
         - name: Ensure agent tool PATH is available in login shells
           ansible.builtin.blockinfile:
             path: "{{ agent_profile_path }}"
@@ -470,6 +481,7 @@
               export UV_TOOL_DIR="{{ agent_uv_tool_dir }}"
               export BUN_INSTALL="{{ agent_bun_install_root }}"
               export MISE_DATA_DIR="{{ agent_mise_data_dir }}"
+              export NUB_INSTALL="{{ agent_nub_install_root }}"
               case ":$PATH:" in
                   *:"{{ agent_local_bin_dir }}":*) ;;
                   *) PATH="{{ agent_local_bin_dir }}:$PATH" ;;
@@ -481,5 +493,9 @@
               case ":$PATH:" in
                   *:"{{ agent_mise_shims_dir }}":*) ;;
                   *) PATH="{{ agent_mise_shims_dir }}:$PATH" ;;
+              esac
+              case ":$PATH:" in
+                  *:"{{ agent_nub_bin_dir }}":*) ;;
+                  *) PATH="{{ agent_nub_bin_dir }}:$PATH" ;;
               esac
               export PATH

@@ -60,7 +60,13 @@ agent_omnara_install_url: https://omnara.com/install.sh
 agent_omnara_binary_name: omnara
 agent_omnara_binary_path: "{{ agent_local_bin_dir }}/omnara"
 
-agent_path: "{{ agent_local_bin_dir }}:{{ agent_bun_bin_dir }}:{{ agent_mise_shims_dir }}:/usr/local/bin:/usr/bin:/bin"
+agent_nub_install_url: https://nubjs.com/install.sh
+agent_nub_install_root: "{{ agent_home }}/.nub"
+agent_nub_bin_dir: "{{ agent_nub_install_root }}/bin"
+agent_nub_binary_name: nub
+agent_nub_binary_path: "{{ agent_nub_bin_dir }}/nub"
+
+agent_path: "{{ agent_local_bin_dir }}:{{ agent_bun_bin_dir }}:{{ agent_mise_shims_dir }}:{{ agent_nub_bin_dir }}:/usr/local/bin:/usr/bin:/bin"
 
 agent_packages:
   - bash
@@ -82,6 +88,7 @@ agent_packages:
   - rsync
   - tmux
   - unzip
+  - make
 
 uninstall_packages:
   - nodejs
