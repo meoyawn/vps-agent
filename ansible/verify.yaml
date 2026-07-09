@@ -91,6 +91,13 @@
           - --version
       changed_when: false
 
+    - name: Verify ffmpeg responds
+      ansible.builtin.command:
+        argv:
+          - ffmpeg
+          - -version
+      changed_when: false
+
     - name: Verify Docker runs a minimal container as agent
       ansible.builtin.command:
         argv:

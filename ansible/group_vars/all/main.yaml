@@ -89,6 +89,7 @@ agent_packages:
   - tmux
   - unzip
   - make
+  - ffmpeg
 
 uninstall_packages:
   - nodejs
