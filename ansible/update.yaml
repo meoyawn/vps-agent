@@ -23,6 +23,18 @@
         PATH: "{{ agent_path }}"
       changed_when: false
 
+    - name: Update Nub for agent user
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_nub_binary_path }}"
+          - upgrade
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
+      changed_when: false
+
     - name: Update uv for agent user
       ansible.builtin.command:
         argv:
