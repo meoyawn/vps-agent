@@ -671,6 +671,18 @@
         HOME: "{{ agent_home }}"
       changed_when: false
 
+    - name: Verify Deno responds in agent login shell
+      ansible.builtin.shell: |
+        set -euo pipefail
+        {{ agent_shell }} -lic 'deno --version'
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      changed_when: false
+
     - name: Verify Task responds in agent login shell
       ansible.builtin.shell: |
         set -euo pipefail
@@ -753,6 +765,7 @@
           test (whoami) = "{{ agent_user }}"
           command -v bun
           command -v uv
+          command -v deno
           command -v task
           command -v rtk
           command -v mise
@@ -1071,5 +1084,12 @@
       ansible.builtin.command:
         argv:
           - scc
+          - --version
+      changed_when: false
+
+    - name: Verify Media Stream Validator responds
+      ansible.builtin.command:
+        argv:
+          - mediastreamvalidator
           - --version
       changed_when: false

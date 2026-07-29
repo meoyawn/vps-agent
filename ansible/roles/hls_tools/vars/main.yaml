@@ -1,0 +1,3 @@
+__hls_tools_archive_path: "{{ hls_tools_install_dir }}/{{ hls_tools_archive_name }}"
+__hls_tools_deploy_path: "{{ hls_tools_install_dir }}/deploy.sh"
+__hls_tools_icu74_archive_path: "{{ hls_tools_install_dir }}/{{ hls_tools_icu74_archive_name }}"

@@ -2,7 +2,7 @@
 
 Run the agent on a VPS so you can close your laptop.
 
-**vps-agent** provisions an Ubuntu 24.04 ARM64 or x86_64 VPS for agent work, focused on [Codex remote connections](https://developers.openai.com/codex/remote-connections). It also sets up a persistent **tmux** shell, **mosh** support, tightened [**sshd** defaults](ansible/roles/sshd/), Docker, Bun, uv, Task, mise, Omnara, and local Codex skills/plugins.
+**vps-agent** provisions an Ubuntu 24.04 ARM64 or x86_64 VPS for agent work, focused on [Codex remote connections](https://developers.openai.com/codex/remote-connections). It also sets up a persistent **tmux** shell, **mosh** support, tightened [**sshd** defaults](ansible/roles/sshd/), Docker, Bun, uv, Deno, Task, mise, Omnara, and local Codex skills/plugins.
 
 ## Prerequisites
 

@@ -364,6 +364,10 @@
       ansible.builtin.import_role:
         name: codex
 
+    - name: Install Apple HLS Tools
+      ansible.builtin.import_role:
+        name: hls_tools
+
     - name: Apply agent-scoped tooling as agent
       become: true
       become_user: "{{ agent_user }}"
@@ -387,6 +391,17 @@
             creates: "{{ agent_uv_binary_path }}"
           environment:
             HOME: "{{ agent_home }}"
+
+        - name: Install Deno for agent user
+          ansible.builtin.shell: |
+            set -euo pipefail
+            curl -fsSL "{{ agent_deno_install_url }}" | env DENO_INSTALL="{{ agent_deno_install_root }}" sh
+          args:
+            executable: /bin/bash
+            creates: "{{ agent_deno_binary_path }}"
+          environment:
+            HOME: "{{ agent_home }}"
+            PATH: "{{ agent_path }}"
 
         - name: Install Task for agent user
           ansible.builtin.shell: |
@@ -482,6 +497,7 @@
               export BUN_INSTALL="{{ agent_bun_install_root }}"
               export MISE_DATA_DIR="{{ agent_mise_data_dir }}"
               export NUB_INSTALL="{{ agent_nub_install_root }}"
+              export DENO_INSTALL="{{ agent_deno_install_root }}"
               case ":$PATH:" in
                   *:"{{ agent_local_bin_dir }}":*) ;;
                   *) PATH="{{ agent_local_bin_dir }}:$PATH" ;;
@@ -497,5 +513,9 @@
               case ":$PATH:" in
                   *:"{{ agent_nub_bin_dir }}":*) ;;
                   *) PATH="{{ agent_nub_bin_dir }}:$PATH" ;;
+              esac
+              case ":$PATH:" in
+                  *:"{{ agent_deno_bin_dir }}":*) ;;
+                  *) PATH="{{ agent_deno_bin_dir }}:$PATH" ;;
               esac
               export PATH

@@ -1,0 +1,10 @@
+# Apple HTTP Live Streaming Tools configuration.
+hls_tools_archive_name: hls_tools_1.26.143.14.tar
+hls_tools_archive_sha256: 37666d6afa569cbd1c6ed9ad4ac6503654c1cd47110a30f72afd72f4332ac8f0
+hls_tools_icu74_archive_name: libicu74_74.2-1ubuntu3_amd64.deb
+hls_tools_icu74_archive_sha256: d29c97a21a3e3254731cfac186e4d4e611e5e67d2c9a0430f6acfbd9acaefa2e
+hls_tools_install_dir: /usr/local/lib/hls-tools
+hls_tools_mediastreamvalidator_path: /usr/local/bin/mediastreamvalidator
+
+# Set to false to prevent the installer from accepting Apple's license agreement.
+hls_tools_license_accepted: true

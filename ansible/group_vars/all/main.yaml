@@ -40,6 +40,11 @@ agent_uv_environment:
   UV_TOOL_BIN_DIR: "{{ agent_local_bin_dir }}"
   UV_TOOL_DIR: "{{ agent_uv_tool_dir }}"
 
+agent_deno_install_url: https://deno.land/install.sh
+agent_deno_install_root: "{{ agent_home }}/.deno"
+agent_deno_bin_dir: "{{ agent_deno_install_root }}/bin"
+agent_deno_binary_path: "{{ agent_deno_bin_dir }}/deno"
+
 agent_task_install_url: https://taskfile.dev/install.sh
 agent_task_binary_path: "{{ agent_local_bin_dir }}/task"
 
@@ -66,7 +71,16 @@ agent_nub_bin_dir: "{{ agent_nub_install_root }}/bin"
 agent_nub_binary_name: nub
 agent_nub_binary_path: "{{ agent_nub_bin_dir }}/nub"
 
-agent_path: "{{ agent_local_bin_dir }}:{{ agent_bun_bin_dir }}:{{ agent_mise_shims_dir }}:{{ agent_nub_bin_dir }}:/usr/local/bin:/usr/bin:/bin"
+agent_path_entries:
+  - "{{ agent_local_bin_dir }}"
+  - "{{ agent_bun_bin_dir }}"
+  - "{{ agent_mise_shims_dir }}"
+  - "{{ agent_nub_bin_dir }}"
+  - "{{ agent_deno_bin_dir }}"
+  - /usr/local/bin
+  - /usr/bin
+  - /bin
+agent_path: "{{ agent_path_entries | join(':') }}"
 
 agent_packages:
   - bash

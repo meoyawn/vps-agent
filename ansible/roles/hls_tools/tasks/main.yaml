@@ -1,0 +1,116 @@
+- name: Assert Apple HLS Tools architecture and distribution are compatible
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['architecture'] == 'x86_64'
+      - ansible_facts['distribution'] == 'Ubuntu'
+    fail_msg: >-
+      Apple HLS Tools requires x86_64 Ubuntu; found
+      {{ ansible_facts['architecture'] }} {{ ansible_facts['distribution'] }}
+      {{ ansible_facts['distribution_version'] }}
+
+- name: Assert Apple HLS Tools license is accepted
+  ansible.builtin.assert:
+    that:
+      - hls_tools_license_accepted | bool
+    fail_msg: >-
+      Set hls_tools_license_accepted to true only after reviewing and accepting
+      Apple's HLS Tools license agreement.
+
+- name: Install Apple HLS Tools prerequisites
+  ansible.builtin.apt:
+    name:
+      - coreutils
+      - curl
+      - man-db
+      - openssl
+      - tar
+      - zlib1g
+    state: present
+    update_cache: true
+
+- name: Create Apple HLS Tools installation directory
+  ansible.builtin.file:
+    path: "{{ hls_tools_install_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Copy ICU 74 compatibility package
+  ansible.builtin.copy:
+    src: "{{ hls_tools_icu74_archive_name }}"
+    dest: "{{ __hls_tools_icu74_archive_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution_version'] != '24.04'
+
+- name: Read ICU 74 compatibility package checksum
+  ansible.builtin.stat:
+    path: "{{ __hls_tools_icu74_archive_path }}"
+    checksum_algorithm: sha256
+  register: hls_tools_icu74_archive_stat
+  when: ansible_facts['distribution_version'] != '24.04'
+
+- name: Assert ICU 74 compatibility package checksum
+  ansible.builtin.assert:
+    that:
+      - hls_tools_icu74_archive_stat.stat.checksum == hls_tools_icu74_archive_sha256
+    fail_msg: ICU 74 compatibility package checksum does not match the pinned SHA-256 value.
+  when: ansible_facts['distribution_version'] != '24.04'
+
+- name: Install ICU 74 compatibility package
+  ansible.builtin.apt:
+    deb: "{{ __hls_tools_icu74_archive_path }}"
+    state: present
+  when: ansible_facts['distribution_version'] != '24.04'
+
+- name: Copy Apple HLS Tools archive
+  ansible.builtin.copy:
+    src: "{{ hls_tools_archive_name }}"
+    dest: "{{ __hls_tools_archive_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Read Apple HLS Tools archive checksum
+  ansible.builtin.stat:
+    path: "{{ __hls_tools_archive_path }}"
+    checksum_algorithm: sha256
+  register: hls_tools_archive_stat
+
+- name: Assert Apple HLS Tools archive checksum
+  ansible.builtin.assert:
+    that:
+      - hls_tools_archive_stat.stat.checksum == hls_tools_archive_sha256
+    fail_msg: >-
+      Apple HLS Tools archive checksum does not match the pinned SHA-256 value.
+
+- name: Extract Apple HLS Tools archive
+  ansible.builtin.unarchive:
+    src: "{{ __hls_tools_archive_path }}"
+    dest: "{{ hls_tools_install_dir }}"
+    remote_src: true
+    creates: "{{ __hls_tools_deploy_path }}"
+
+- name: Install Apple HLS Tools
+  ansible.builtin.command:
+    cmd: ./deploy.sh -i
+    chdir: "{{ hls_tools_install_dir }}"
+    creates: "{{ hls_tools_mediastreamvalidator_path }}"
+    stdin: Y
+    stdin_add_newline: true
+
+- name: Refresh dynamic linker cache for Apple HLS Tools
+  ansible.builtin.copy:
+    dest: /etc/ld.so.conf.d/60-hls-tools.conf
+    content: |
+      /usr/lib64
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Refresh dynamic linker cache for Apple HLS Tools
+  ansible.builtin.command:
+    cmd: ldconfig
+  changed_when: false
