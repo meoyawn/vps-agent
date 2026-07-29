@@ -19,6 +19,9 @@ Run the agent on a VPS so you can close your laptop.
 - Local SSH config and keys under **`~/.ssh/`**. Provisioning syncs SSH files while excluding `known_hosts*`, `authorized_keys`, and sockets, then builds `/home/agent/.ssh/authorized_keys` from the synced public keys.
 - Local Git config at **`~/.gitconfig`**. Provisioning syncs it to the agent user so commits have the same author identity.
 - Local fish config under **`~/.config/fish/`** if you want it mirrored to the VPS.
+  Keep `config.fish` portable shared configuration. Controller-only settings belong
+  in `conf.d/` (for example, `conf.d/macos.fish`); controller `conf.d/`, completions,
+  and `fish_variables` are excluded from VPS synchronization.
 - Local Codex skills/plugins under **`~/.codex/skills/`** and **`~/.codex/plugins/`** if you want them mirrored to the VPS.
 - A local SSH config entry for the Codex remote connection:
 

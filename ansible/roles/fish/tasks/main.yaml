@@ -19,6 +19,25 @@
     - "{{ agent_home }}/.config"
     - "{{ agent_fish_config_dir }}"
 
+- name: Read controller fish shared config
+  ansible.builtin.set_fact:
+    __fish_controller_config_content: >-
+      {{ lookup('ansible.builtin.file', ansible_controller_fish_config_dir ~ '/config.fish', rstrip=False) }}
+
+- name: Reject machine-specific settings in controller fish shared config
+  ansible.builtin.assert:
+    that:
+      - item not in __fish_controller_config_content
+    fail_msg: >-
+      controller config.fish contains forbidden machine-specific marker {{ item }};
+      move controller-only settings to conf.d/macos.fish
+  loop:
+    - UV_PYTHON
+    - /opt/homebrew
+    - $HOME/Library
+    - ~/Library
+    - /Applications
+
 - name: Sync controller fish config
   ansible.posix.synchronize:
     src: "{{ ansible_controller_fish_config_dir }}/"
@@ -58,20 +77,13 @@
     path: "{{ agent_fish_config_dir }}/fish_variables"
   register: fish_variables_stat
 
-- name: Read agent fish universal variables
-  ansible.builtin.slurp:
-    src: "{{ agent_fish_config_dir }}/fish_variables"
-  register: fish_variables_content
-  when: fish_variables_stat.stat.exists
-
-- name: Remove controller fish universal variables from agent
-  ansible.builtin.file:
+- name: Remove stale UV_PYTHON fish universal variable
+  ansible.builtin.lineinfile:
     path: "{{ agent_fish_config_dir }}/fish_variables"
+    regexp: '^SETUVAR UV_PYTHON:'
     state: absent
   when:
     - fish_variables_stat.stat.exists
-    - "'SETUVAR fish_color_' not in (fish_variables_content.content | b64decode)"
-  changed_when: false
 
 - name: Ensure agent fish conf.d directory exists
   ansible.builtin.file:

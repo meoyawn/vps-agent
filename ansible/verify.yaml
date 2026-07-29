@@ -979,21 +979,22 @@
           - --version
       changed_when: false
 
-    - name: Stat excluded fish config paths
-      ansible.builtin.stat:
-        path: "{{ agent_fish_config_dir }}/{{ item }}"
-      loop:
-        - completions
-        - conf.d/orbstack.fish
-        - conf.d/rustup.fish
-      register: agent_excluded_fish_config_paths
+    - name: Find agent fish conf.d entries
+      ansible.builtin.find:
+        paths: "{{ agent_fish_config_dir }}/conf.d"
+        recurse: true
+        hidden: true
+        file_type: any
+      register: agent_fish_conf_d_entries
 
-    - name: Assert excluded fish config paths are absent
+    - name: Assert controller fish conf.d entries are absent
       ansible.builtin.assert:
         that:
-          - not item.stat.exists
-        fail_msg: "expected {{ agent_fish_config_dir }}/{{ item.item }} to be absent"
-      loop: "{{ agent_excluded_fish_config_paths.results }}"
+          - item.path == agent_fish_env_config_path
+        fail_msg: >-
+          expected controller conf.d entries to be absent from {{ agent_fish_config_dir }}/conf.d;
+          found {{ item.path }}
+      loop: "{{ agent_fish_conf_d_entries.files }}"
 
     - name: Stat synced fish config
       ansible.builtin.stat:
@@ -1021,6 +1022,19 @@
         fail_msg: >-
           expected {{ agent_fish_config_dir }}/config.fish to match
           {{ ansible_controller_fish_config_dir }}/config.fish
+
+    - name: Assert synced fish config is portable
+      ansible.builtin.assert:
+        that:
+          - item not in (agent_fish_config_content.content | default('') | b64decode)
+        fail_msg: >-
+          synced config.fish contains forbidden machine-specific marker {{ item }}
+      loop:
+        - UV_PYTHON
+        - /opt/homebrew
+        - $HOME/Library
+        - ~/Library
+        - /Applications
 
     - name: Stat generated fish environment config
       ansible.builtin.stat:
@@ -1065,6 +1079,42 @@
         fail_msg: >-
           expected fish prompt colors green/cyan/brred/brblack;
           got {{ agent_fish_color_variables.stdout_lines | default([]) }}
+
+    - name: Verify fresh fish login environment
+      ansible.builtin.command:
+        argv:
+          - fish
+          - -l
+          - -c
+          - |-
+            if set -q UV_PYTHON
+                printf '__UV_PYTHON_SET__\n'
+            else
+                printf '__UV_PYTHON_UNSET__\n'
+            end
+            printf '__FISH_PATH_BEGIN__\n'
+            string join \n $PATH
+            printf '__FISH_PATH_END__\n'
+            uvx glances --version
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        UV_PYTHON: /opt/homebrew/bin/python3.14
+      register: agent_fish_login_environment
+      changed_when: false
+
+    - name: Assert fresh fish login environment is portable
+      ansible.builtin.assert:
+        that:
+          - "'__UV_PYTHON_UNSET__' in agent_fish_login_environment.stdout"
+          - "'__UV_PYTHON_SET__' not in agent_fish_login_environment.stdout"
+          - "'/opt/homebrew' not in agent_fish_login_environment.stdout"
+          - "'Library' not in agent_fish_login_environment.stdout"
+          - "'/Applications' not in agent_fish_login_environment.stdout"
+        fail_msg: >-
+          expected fresh fish login to erase UV_PYTHON and avoid macOS paths;
+          got {{ agent_fish_login_environment.stdout | default('') }}
 
     - name: Verify fish config loads for agent
       ansible.builtin.shell: |
