@@ -100,6 +100,7 @@
     owner: false
     group: false
     perms: false
+    delete: true
     rsync_path: "sudo -u {{ agent_user }} rsync"
   changed_when: false
 
