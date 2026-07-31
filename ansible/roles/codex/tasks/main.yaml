@@ -121,17 +121,6 @@
       - --exclude=.DS_Store
   changed_when: false
 
-- name: Remove excluded Codex plugin cache paths
-  ansible.builtin.file:
-    path: "{{ agent_codex_plugins_dir }}/{{ item }}"
-    state: absent
-  loop:
-    - cache
-    - .plugin-appserver
-    - .remote-plugin-install-staging
-    - .DS_Store
-  changed_when: false
-
 - name: Ensure synced Codex content is owned by agent
   ansible.builtin.file:
     path: "{{ item }}"

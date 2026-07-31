@@ -931,23 +931,6 @@
           expected at least one .codex-plugin directory under {{ agent_codex_plugins_dir }};
           got {{ codex_plugin_definitions.matched | default(0) }}
 
-    - name: Assert excluded Codex plugin paths are absent
-      ansible.builtin.stat:
-        path: "{{ agent_codex_plugins_dir }}/{{ item }}"
-      loop:
-        - cache
-        - .plugin-appserver
-        - .remote-plugin-install-staging
-        - .DS_Store
-      register: codex_excluded_plugin_paths
-
-    - name: Verify excluded Codex plugin paths are absent
-      ansible.builtin.assert:
-        that:
-          - not item.stat.exists
-        fail_msg: "expected {{ agent_codex_plugins_dir }}/{{ item.item }} to be absent"
-      loop: "{{ codex_excluded_plugin_paths.results }}"
-
     - name: Verify Codex config and hooks load
       ansible.builtin.command:
         argv:
@@ -959,17 +942,6 @@
       environment:
         HOME: "{{ agent_home }}"
         PATH: "{{ agent_path }}"
-      changed_when: false
-
-    - name: Remove Codex smoke plugin cache paths
-      ansible.builtin.file:
-        path: "{{ agent_codex_plugins_dir }}/{{ item }}"
-        state: absent
-      loop:
-        - cache
-        - .plugin-appserver
-        - .remote-plugin-install-staging
-        - .DS_Store
       changed_when: false
 
     - name: Verify fish responds

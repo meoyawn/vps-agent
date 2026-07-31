@@ -1,7 +1,7 @@
 - name: Update apt packages and agent user tools
   hosts: vps
   become: true
-  gather_facts: false
+  gather_facts: true
   tasks:
     - name: Update apt package indexes and upgrade installed packages
       ansible.builtin.apt:
@@ -50,17 +50,56 @@
       failed_when: false
 
     - name: Update Codex for agent user
+      # Codex's supported update path is the official installer, which resolves the latest release.
+      ansible.builtin.shell: |
+        set -euo pipefail
+        curl -fsSL "{{ agent_codex_install_url }}" | sh
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
+        CODEX_NON_INTERACTIVE: "1"
+      changed_when: false
+
+    - name: Verify updated Codex binary
       ansible.builtin.command:
         argv:
-          - "{{ agent_codex_binary_name }}"
-          - update
+          - "{{ agent_codex_binary_path }}"
+          - --version
       become: true
       become_user: "{{ agent_user }}"
       environment:
         HOME: "{{ agent_home }}"
         PATH: "{{ agent_path }}"
       changed_when: false
-      failed_when: false
+
+    - name: Update Omnara for agent user
+      ansible.builtin.get_url:
+        url: "{{ agent_omnara_release_url }}"
+        dest: "{{ agent_omnara_binary_path }}"
+        owner: "{{ agent_user }}"
+        group: "{{ agent_group }}"
+        mode: "0711"
+        force: true
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      changed_when: false
+
+    - name: Verify updated Omnara binary
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_omnara_binary_path }}"
+          - --version
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      changed_when: false
 
     - name: Update mise for agent user
       ansible.builtin.command:
