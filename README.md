@@ -76,8 +76,11 @@ If sessions wedge or disconnected agents leave processes behind, look in [docs](
 
 For shell sessions, run **`task tmux`**; [Taskfile](Taskfile.yaml) connects as Linux user `agent` and attaches tmux session `macos`.
 
+For direct agent SSH commands, run **`task agent-ssh`**. It keeps a multiplexed SSH master connection for 10 minutes so repeated commands avoid reconnecting.
+
 For Moshi/mosh clients, rely on the Linux user being `agent`, not on a fixed tmux session name. Mobile clients may attach existing tmux sessions without giving us full control over the session name.
 
 ## Maintenance
 
 - **`task update`** — Updates packages and user-scoped tools on the already-provisioned host.
+- **`task agent-ssh`** — Opens an agent SSH session with 10-minute connection multiplexing.

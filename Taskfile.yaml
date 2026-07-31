@@ -95,6 +95,31 @@ tasks:
         " "{{.INVENTORY}}" "{{.TARGET}}")
         exec ssh "$host_spec" {{.CLI_ARGS}}
 
+  agent-ssh:
+    desc: SSH to first host in TARGET as agent with a persistent multiplexed connection
+    cmd: |
+      set -eu
+      host_spec=$(python3 -c "
+      import json, subprocess, sys
+      inv = sys.argv[1]
+      target = sys.argv[2]
+      d = json.loads(subprocess.check_output(['ansible-inventory', '-i', inv, '--list']))
+      hosts = d[target]['hosts']
+      h = hosts[0]
+      hv = d['_meta']['hostvars'][h]
+      print(f'agent@{hv[\"ansible_host\"]}', end='')
+      " "{{.INVENTORY}}" "{{.TARGET}}")
+      control_dir="{{.HOME}}/.ssh/controlmasters"
+      mkdir -p "$control_dir"
+      chmod 700 "$control_dir"
+      exec ssh \
+        -o ControlMaster=auto \
+        -o ControlPersist=10m \
+        -o ControlPath="$control_dir/vps-agent-%C" \
+        -o ServerAliveInterval=30 \
+        -o ServerAliveCountMax=3 \
+        "$host_spec" {{.CLI_ARGS}}
+
   tmux:
     desc: SSH to first host in TARGET as agent, then attach or create a tmux session
     cmds:
