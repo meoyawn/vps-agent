@@ -30,6 +30,42 @@
             state: present
             update_cache: true
 
+        - name: Ensure apt keyring directory exists
+          ansible.builtin.file:
+            path: /etc/apt/keyrings
+            state: directory
+            owner: root
+            group: root
+            mode: "0755"
+
+        - name: Install NodeSource signing key
+          ansible.builtin.get_url:
+            url: "{{ agent_nodesource_key_url }}"
+            dest: /etc/apt/keyrings/nodesource.asc
+            owner: root
+            group: root
+            mode: "0644"
+
+        - name: Configure NodeSource repository
+          ansible.builtin.deb822_repository:
+            name: nodesource
+            types:
+              - deb
+            uris:
+              - https://deb.nodesource.com/node_{{ agent_node_major_version }}.x
+            suites:
+              - nodistro
+            components:
+              - main
+            signed_by: /etc/apt/keyrings/nodesource.asc
+            state: present
+
+        - name: Install latest supported Node.js
+          ansible.builtin.apt:
+            name: nodejs
+            state: present
+            update_cache: true
+
         - name: Uninstall conflicting system packages
           ansible.builtin.apt:
             name: "{{ uninstall_packages }}"
@@ -454,17 +490,6 @@
           register: agent_mise_install
           changed_when: "'__MISE_CHANGED__' in agent_mise_install.stdout_lines"
 
-        - name: Install Herdr for agent user
-          ansible.builtin.shell: |
-            set -euo pipefail
-            curl -fsSL "{{ agent_herdr_install_url }}" | sh
-          args:
-            executable: /bin/bash
-            creates: "{{ agent_herdr_binary_path }}"
-          environment:
-            HOME: "{{ agent_home }}"
-            PATH: "{{ agent_path }}"
-
         - name: Install Nub for agent user
           ansible.builtin.shell: |
             set -euo pipefail
@@ -475,6 +500,21 @@
           environment:
             HOME: "{{ agent_home }}"
             PATH: "{{ agent_path }}"
+
+        - name: Install T3 Code background service
+          ansible.builtin.command:
+            argv:
+              - "{{ agent_nubx_binary_path }}"
+              - -y
+              - "{{ agent_t3_package }}"
+              - service
+              - install
+          environment:
+            HOME: "{{ agent_home }}"
+            PATH: "{{ agent_path }}"
+          register: agent_t3_service_install
+          changed_when: >-
+            agent_t3_service_install.stdout is search('Installed|Updated')
 
         - name: Ensure agent tool PATH is available in login shells
           ansible.builtin.blockinfile:

@@ -8,8 +8,9 @@
 
 ## Rules
 
-- never use `node`, use `bun`
-- never use `bunx`, ask human permission to `bun i -d` instead. Then keep using `bun`
+- T3 Code runs on Node.js. Use `nubx -y t3@latest ...` for its package runner; never use `npx`, Bun, or a global T3 package.
+- `nub` / `nubx` are already provisioned by Ansible. Do not replace them with `npx`, `bunx`, or another package runner.
+- Keep existing Bun-backed repository tooling unchanged; do not use Bun for Node/T3 workflows.
 - never write yaml extension as `.yml`, do `.yaml`
 - never skip running `task verify` after `ansible/**/*` change
 - never run `task verify` when working with `git`

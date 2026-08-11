@@ -31,6 +31,10 @@ agent_bun_install_root: "{{ agent_home }}/.bun"
 agent_bun_bin_dir: "{{ agent_bun_install_root }}/bin"
 agent_bun_binary_path: "{{ agent_bun_bin_dir }}/bun"
 
+agent_t3_package: t3@latest
+agent_node_major_version: "24"
+agent_nodesource_key_url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
+
 agent_uv_install_url: https://astral.sh/uv/install.sh
 agent_uv_binary_path: "{{ agent_local_bin_dir }}/uv"
 agent_uv_tool_dir: "{{ agent_home }}/.local/share/uv/tools"
@@ -61,15 +65,12 @@ agent_mise_data_dir: "{{ agent_home }}/.local/share/mise"
 agent_mise_shims_dir: "{{ agent_mise_data_dir }}/shims"
 agent_mise_binary_path: "{{ agent_local_bin_dir }}/mise"
 
-agent_herdr_install_url: https://herdr.dev/install.sh
-agent_herdr_binary_name: herdr
-agent_herdr_binary_path: "{{ agent_local_bin_dir }}/herdr"
-
 agent_nub_install_url: https://nubjs.com/install.sh
 agent_nub_install_root: "{{ agent_home }}/.nub"
 agent_nub_bin_dir: "{{ agent_nub_install_root }}/bin"
 agent_nub_binary_name: nub
 agent_nub_binary_path: "{{ agent_nub_bin_dir }}/nub"
+agent_nubx_binary_path: "{{ agent_nub_bin_dir }}/nubx"
 
 agent_path_entries:
   - "{{ agent_local_bin_dir }}"
@@ -106,10 +107,7 @@ agent_packages:
   - make
   - ffmpeg
 
-uninstall_packages:
-  - nodejs
-  - npm
-
+uninstall_packages: []
 agent_docker_compose_binary_path: /usr/libexec/docker/cli-plugins/docker-compose
 agent_docker_compose_compat_path: /usr/local/bin/docker-compose
 
