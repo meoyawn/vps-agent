@@ -279,6 +279,14 @@
             executable: /bin/bash
             creates: /usr/local/bin/scc
 
+        - name: Install pkgx
+          ansible.builtin.shell: |
+            set -euo pipefail
+            curl -fsS https://pkgx.sh | sh
+          args:
+            executable: /bin/bash
+            creates: /usr/local/bin/pkgx
+
     - name: Apply firewall policy
       block:
         - name: Install UFW

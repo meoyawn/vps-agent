@@ -1108,6 +1108,20 @@
           - --version
       changed_when: false
 
+    - name: Verify pkgx can run lazydocker
+      ansible.builtin.command:
+        argv:
+          - pkgx
+          - lazydocker
+          - --version
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
+        PKGX_DIR: "{{ agent_home }}/.pkgx"
+      changed_when: false
+
     - name: Verify Media Stream Validator responds
       ansible.builtin.command:
         argv:
