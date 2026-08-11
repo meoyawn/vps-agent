@@ -687,10 +687,10 @@
         HOME: "{{ agent_home }}"
       changed_when: false
 
-    - name: Verify Amp CLI responds
+    - name: Verify Omnara CLI responds
       ansible.builtin.command:
         argv:
-          - amp
+          - omnara
           - --version
       become: true
       become_user: "{{ agent_user }}"

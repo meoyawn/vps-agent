@@ -493,9 +493,9 @@
             HOME: "{{ agent_home }}"
             PATH: "{{ agent_path }}"
 
-        - name: Install Amp CLI and runner role
+        - name: Install Omnara CLI role
           ansible.builtin.include_role:
-            name: amp
+            name: omnara
 
         - name: Remove mise for agent user
           ansible.builtin.file:

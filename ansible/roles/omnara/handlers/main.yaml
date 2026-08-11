@@ -1,0 +1,2 @@
+---
+# Omnara is installed by its upstream installer and needs no Ansible handlers.

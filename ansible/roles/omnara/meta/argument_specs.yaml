@@ -1,0 +1,43 @@
+argument_specs:
+  main:
+    short_description: Install the Omnara CLI for the agent user
+    description:
+      - Installs the Omnara CLI using the upstream Linux installer.
+      - Links the installed binary into the agent user's local executable path.
+    options:
+      omnara_install_url:
+        description: URL of the Omnara CLI installer.
+        type: str
+      omnara_agent_user:
+        description: User that owns and runs Omnara.
+        type: str
+      omnara_agent_group:
+        description: Group that owns the Omnara files.
+        type: str
+      omnara_agent_home:
+        description: Home directory used by Omnara.
+        type: path
+      omnara_agent_path:
+        description: PATH used while installing and running Omnara.
+        type: str
+      omnara_install_dir:
+        description: Directory containing the Omnara CLI binary.
+        type: path
+      omnara_binary_path:
+        description: Absolute path to the installed Omnara binary.
+        type: path
+      omnara_binary_link_path:
+        description: Agent-local executable path linked to the Omnara binary.
+        type: path
+      omnara_version:
+        description: Omnara version requested from the release server.
+        type: str
+      omnara_arch:
+        description: Optional Omnara architecture override.
+        type: str
+      omnara_release_url:
+        description: Omnara release server base URL.
+        type: str
+      omnara_no_service:
+        description: Whether to skip installation of Omnara's background service.
+        type: bool

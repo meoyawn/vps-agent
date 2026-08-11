@@ -1,0 +1,28 @@
+- name: Install Omnara CLI for agent user
+  ansible.builtin.shell: |
+    set -euo pipefail
+    curl -fsSL "{{ omnara_install_url }}" | bash
+  args:
+    executable: /bin/bash
+    creates: "{{ omnara_binary_path }}"
+  become: true
+  become_user: "{{ omnara_agent_user }}"
+  environment:
+    HOME: "{{ omnara_agent_home }}"
+    PATH: "{{ omnara_agent_path }}"
+    OMNARA_INSTALL_DIR: "{{ omnara_install_dir }}"
+    OMNARA_VERSION: "{{ omnara_version }}"
+    OMNARA_ARCH: "{{ omnara_arch }}"
+    OMNARA_RELEASE_URL: "{{ omnara_release_url }}"
+    OMNARA_NO_SERVICE: "{{ '1' if omnara_no_service | bool else '0' }}"
+
+- name: Link Omnara CLI into agent local bin directory
+  ansible.builtin.file:
+    src: "{{ omnara_binary_path }}"
+    dest: "{{ omnara_binary_link_path }}"
+    state: link
+    owner: "{{ omnara_agent_user }}"
+    group: "{{ omnara_agent_group }}"
+    force: true
+  become: true
+  become_user: root

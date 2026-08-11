@@ -1,7 +1,7 @@
 galaxy_info:
-  role_name: amp
+  role_name: omnara
   author: vps-agent
-  description: Install the Amp CLI and an optional headless runner
+  description: Install the Omnara CLI for an agent user
   license: MIT
   min_ansible_version: '2.17'
   platforms:

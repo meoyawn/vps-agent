@@ -1,0 +1,17 @@
+# Omnara CLI installation configuration.
+omnara_install_url: https://omnara.com/install.sh
+omnara_agent_user: "{{ agent_user }}"
+omnara_agent_group: "{{ agent_group }}"
+omnara_agent_home: "{{ agent_home }}"
+omnara_agent_path: "{{ agent_path }}"
+
+omnara_install_dir: "{{ omnara_agent_home }}/.omnara/bin"
+omnara_binary_path: "{{ omnara_install_dir }}/omnara"
+omnara_binary_link_path: "{{ omnara_agent_home }}/.local/bin/omnara"
+omnara_version: latest
+omnara_arch: ""
+omnara_release_url: https://releases.omnara.com
+
+# The installer enables the Omnara background service by default. Set this to
+# true when the host should only provide the CLI and a separate daemon setup.
+omnara_no_service: false
