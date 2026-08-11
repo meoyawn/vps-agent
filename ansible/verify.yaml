@@ -245,6 +245,26 @@
           expected active ufw with SSH and Mosh UDP rules;
           got {{ ufw_status.stdout_lines | default([]) }}
 
+    - name: Assert ufw exposes only SSH and Mosh
+      ansible.builtin.shell: |
+        set -o pipefail
+        ufw status numbered | awk '
+          /^\[[[:space:]]*[0-9]+\]/ {
+            if ($0 !~ /^\[[[:space:]]*[0-9]+\][[:space:]]+(22\/tcp|60000:61000\/udp)([[:space:]]+\(v6\))?[[:space:]]+ALLOW IN/) {
+              print
+              unexpected = 1
+            }
+          }
+          END {
+            if (unexpected) {
+              exit 1
+            }
+          }
+        '
+      args:
+        executable: /bin/bash
+      changed_when: false
+
     - name: Read AppArmor unprivileged unconfined restriction
       ansible.builtin.command:
         argv:
@@ -667,12 +687,10 @@
         HOME: "{{ agent_home }}"
       changed_when: false
 
-    - name: Verify T3 Code server responds
+    - name: Verify Amp CLI responds
       ansible.builtin.command:
         argv:
-          - "{{ agent_nubx_binary_path }}"
-          - -y
-          - "{{ agent_t3_package }}"
+          - amp
           - --version
       become: true
       become_user: "{{ agent_user }}"
@@ -680,30 +698,6 @@
         HOME: "{{ agent_home }}"
         PATH: "{{ agent_path }}"
       changed_when: false
-
-    - name: Read T3 Code background service status
-      ansible.builtin.command:
-        argv:
-          - "{{ agent_nubx_binary_path }}"
-          - -y
-          - "{{ agent_t3_package }}"
-          - service
-          - status
-      become: true
-      become_user: "{{ agent_user }}"
-      environment:
-        HOME: "{{ agent_home }}"
-        PATH: "{{ agent_path }}"
-      register: agent_t3_service_status
-      changed_when: false
-
-    - name: Assert T3 Code background service is installed
-      ansible.builtin.assert:
-        that:
-          - "agent_t3_service_status.stdout is search('Status: installed · t3@')"
-        fail_msg: >-
-          expected T3 Code background service to be installed;
-          got {{ agent_t3_service_status.stdout | default('') }}
 
     - name: Verify uv responds in agent login shell
       ansible.builtin.shell: |
@@ -753,18 +747,6 @@
         HOME: "{{ agent_home }}"
       changed_when: false
 
-    - name: Verify mise responds in agent login shell
-      ansible.builtin.shell: |
-        set -euo pipefail
-        {{ agent_shell }} -lic 'mise --version'
-      args:
-        executable: /bin/bash
-      become: true
-      become_user: "{{ agent_user }}"
-      environment:
-        HOME: "{{ agent_home }}"
-      changed_when: false
-
     - name: Verify Nub responds in agent login shell
       ansible.builtin.shell: |
         set -euo pipefail
@@ -787,7 +769,6 @@
           command -v deno
           command -v task
           command -v rtk
-          command -v mise
           command -v codex
           command -v nub
           codex --version

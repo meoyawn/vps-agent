@@ -30,42 +30,6 @@
             state: present
             update_cache: true
 
-        - name: Ensure apt keyring directory exists
-          ansible.builtin.file:
-            path: /etc/apt/keyrings
-            state: directory
-            owner: root
-            group: root
-            mode: "0755"
-
-        - name: Install NodeSource signing key
-          ansible.builtin.get_url:
-            url: "{{ agent_nodesource_key_url }}"
-            dest: /etc/apt/keyrings/nodesource.asc
-            owner: root
-            group: root
-            mode: "0644"
-
-        - name: Configure NodeSource repository
-          ansible.builtin.deb822_repository:
-            name: nodesource
-            types:
-              - deb
-            uris:
-              - https://deb.nodesource.com/node_{{ agent_node_major_version }}.x
-            suites:
-              - nodistro
-            components:
-              - main
-            signed_by: /etc/apt/keyrings/nodesource.asc
-            state: present
-
-        - name: Install latest supported Node.js
-          ansible.builtin.apt:
-            name: nodejs
-            state: present
-            update_cache: true
-
         - name: Uninstall conflicting system packages
           ansible.builtin.apt:
             name: "{{ uninstall_packages }}"
@@ -322,6 +286,47 @@
             name: ufw
             state: present
 
+        - name: Check numbered ufw rules before reconciliation
+          ansible.builtin.command:
+            argv:
+              - ufw
+              - status
+              - numbered
+          register: ufw_status_before_rules
+          changed_when: false
+
+        - name: Detect unexpected ufw rules
+          ansible.builtin.shell: |
+            set -o pipefail
+            ufw status numbered | awk '
+              /^\[[[:space:]]*[0-9]+\]/ {
+                if ($0 !~ /^\[[[:space:]]*[0-9]+\][[:space:]]+(22\/tcp|60000:61000\/udp)([[:space:]]+\(v6\))?[[:space:]]+ALLOW IN/) {
+                  print
+                  found = 1
+                }
+              }
+              END {
+                exit(found ? 0 : 1)
+              }
+            '
+          args:
+            executable: /bin/bash
+          register: ufw_unexpected_rules
+          changed_when: false
+          failed_when: false
+
+        - name: Reset ufw rules when unexpected ports are present
+          ansible.builtin.command:
+            argv:
+              - ufw
+              - --force
+              - reset
+          when:
+            - >-
+              'Status: inactive' in ufw_status_before_rules.stdout
+              or ufw_unexpected_rules.stdout | trim | length > 0
+          changed_when: true
+
         - name: Deny incoming traffic by default
           ansible.builtin.lineinfile:
             path: /etc/default/ufw
@@ -336,9 +341,13 @@
             line: 'DEFAULT_OUTPUT_POLICY="ACCEPT"'
           notify: Reload ufw if active
 
-        - name: Check ufw status before rule changes
-          ansible.builtin.command: ufw status
-          register: ufw_status_before_rules
+        - name: Check numbered ufw rules after reconciliation
+          ansible.builtin.command:
+            argv:
+              - ufw
+              - status
+              - numbered
+          register: ufw_status_after_reset
           changed_when: false
 
         - name: Allow SSH through ufw
@@ -349,7 +358,7 @@
               - 22/tcp
               - comment
               - SSH
-          when: "'22/tcp' not in ufw_status_before_rules.stdout"
+          when: "'22/tcp' not in ufw_status_after_reset.stdout"
           changed_when: true
           notify: Reload ufw if active
 
@@ -361,7 +370,7 @@
               - 60000:61000/udp
               - comment
               - Mosh
-          when: "'60000:61000/udp' not in ufw_status_before_rules.stdout"
+          when: "'60000:61000/udp' not in ufw_status_after_reset.stdout"
           changed_when: true
           notify: Reload ufw if active
 
@@ -473,23 +482,6 @@
           register: agent_codex_install
           changed_when: "'__CODEX_CHANGED__' in agent_codex_install.stdout_lines"
 
-        - name: Install mise for agent user
-          ansible.builtin.shell: |
-            set -euo pipefail
-            if command -v mise >/dev/null 2>&1; then
-              echo __MISE_UNCHANGED__
-              exit 0
-            fi
-            curl "{{ agent_mise_install_url }}" | sh
-            echo __MISE_CHANGED__
-          args:
-            executable: /bin/bash
-          environment:
-            HOME: "{{ agent_home }}"
-            PATH: "{{ agent_path }}"
-          register: agent_mise_install
-          changed_when: "'__MISE_CHANGED__' in agent_mise_install.stdout_lines"
-
         - name: Install Nub for agent user
           ansible.builtin.shell: |
             set -euo pipefail
@@ -501,20 +493,17 @@
             HOME: "{{ agent_home }}"
             PATH: "{{ agent_path }}"
 
-        - name: Install T3 Code background service
-          ansible.builtin.command:
-            argv:
-              - "{{ agent_nubx_binary_path }}"
-              - -y
-              - "{{ agent_t3_package }}"
-              - service
-              - install
-          environment:
-            HOME: "{{ agent_home }}"
-            PATH: "{{ agent_path }}"
-          register: agent_t3_service_install
-          changed_when: >-
-            agent_t3_service_install.stdout is search('Installed|Updated')
+        - name: Install Amp CLI and runner role
+          ansible.builtin.include_role:
+            name: amp
+
+        - name: Remove mise for agent user
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: absent
+          loop:
+            - "{{ agent_local_bin_dir }}/mise"
+            - "{{ agent_home }}/.local/share/mise"
 
         - name: Ensure agent tool PATH is available in login shells
           ansible.builtin.blockinfile:
@@ -525,7 +514,6 @@
               export UV_TOOL_BIN_DIR="{{ agent_local_bin_dir }}"
               export UV_TOOL_DIR="{{ agent_uv_tool_dir }}"
               export BUN_INSTALL="{{ agent_bun_install_root }}"
-              export MISE_DATA_DIR="{{ agent_mise_data_dir }}"
               export NUB_INSTALL="{{ agent_nub_install_root }}"
               export DENO_INSTALL="{{ agent_deno_install_root }}"
               case ":$PATH:" in
@@ -535,10 +523,6 @@
               case ":$PATH:" in
                   *:"{{ agent_bun_bin_dir }}":*) ;;
                   *) PATH="{{ agent_bun_bin_dir }}:$PATH" ;;
-              esac
-              case ":$PATH:" in
-                  *:"{{ agent_mise_shims_dir }}":*) ;;
-                  *) PATH="{{ agent_mise_shims_dir }}:$PATH" ;;
               esac
               case ":$PATH:" in
                   *:"{{ agent_nub_bin_dir }}":*) ;;

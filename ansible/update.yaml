@@ -75,16 +75,3 @@
         HOME: "{{ agent_home }}"
         PATH: "{{ agent_path }}"
       changed_when: false
-
-    - name: Update mise for agent user
-      ansible.builtin.command:
-        argv:
-          - "{{ agent_mise_binary_path }}"
-          - self-update
-      become: true
-      become_user: "{{ agent_user }}"
-      environment:
-        HOME: "{{ agent_home }}"
-        PATH: "{{ agent_path }}"
-      changed_when: false
-      failed_when: false

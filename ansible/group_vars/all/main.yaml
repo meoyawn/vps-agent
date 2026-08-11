@@ -31,10 +31,6 @@ agent_bun_install_root: "{{ agent_home }}/.bun"
 agent_bun_bin_dir: "{{ agent_bun_install_root }}/bin"
 agent_bun_binary_path: "{{ agent_bun_bin_dir }}/bun"
 
-agent_t3_package: t3@latest
-agent_node_major_version: "24"
-agent_nodesource_key_url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
-
 agent_uv_install_url: https://astral.sh/uv/install.sh
 agent_uv_binary_path: "{{ agent_local_bin_dir }}/uv"
 agent_uv_tool_dir: "{{ agent_home }}/.local/share/uv/tools"
@@ -60,11 +56,6 @@ agent_codex_install_url: https://chatgpt.com/codex/install.sh
 agent_codex_binary_name: codex
 agent_codex_binary_path: "{{ agent_local_bin_dir }}/codex"
 
-agent_mise_install_url: https://mise.run
-agent_mise_data_dir: "{{ agent_home }}/.local/share/mise"
-agent_mise_shims_dir: "{{ agent_mise_data_dir }}/shims"
-agent_mise_binary_path: "{{ agent_local_bin_dir }}/mise"
-
 agent_nub_install_url: https://nubjs.com/install.sh
 agent_nub_install_root: "{{ agent_home }}/.nub"
 agent_nub_bin_dir: "{{ agent_nub_install_root }}/bin"
@@ -75,7 +66,6 @@ agent_nubx_binary_path: "{{ agent_nub_bin_dir }}/nubx"
 agent_path_entries:
   - "{{ agent_local_bin_dir }}"
   - "{{ agent_bun_bin_dir }}"
-  - "{{ agent_mise_shims_dir }}"
   - "{{ agent_nub_bin_dir }}"
   - "{{ agent_deno_bin_dir }}"
   - /usr/local/bin

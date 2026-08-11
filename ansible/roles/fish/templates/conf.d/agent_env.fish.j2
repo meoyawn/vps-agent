@@ -3,7 +3,6 @@ set --erase UV_PYTHON
 set -gx UV_TOOL_BIN_DIR "{{ agent_local_bin_dir }}"
 set -gx UV_TOOL_DIR "{{ agent_uv_tool_dir }}"
 set -gx BUN_INSTALL "{{ agent_bun_install_root }}"
-set -gx MISE_DATA_DIR "{{ agent_mise_data_dir }}"
 set -gx NUB_INSTALL "{{ agent_nub_install_root }}"
 set -gx DENO_INSTALL "{{ agent_deno_install_root }}"
 
@@ -33,10 +32,6 @@ end
 
 if not contains -- "{{ agent_bun_bin_dir }}" $PATH
     set -gx PATH "{{ agent_bun_bin_dir }}" $PATH
-end
-
-if not contains -- "{{ agent_mise_shims_dir }}" $PATH
-    set -gx PATH "{{ agent_mise_shims_dir }}" $PATH
 end
 
 if not contains -- "{{ agent_nub_bin_dir }}" $PATH

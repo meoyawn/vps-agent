@@ -1,0 +1,96 @@
+- name: Install Amp CLI for agent user
+  ansible.builtin.shell: |
+    set -euo pipefail
+    curl -fsSL "{{ amp_install_url }}" | bash
+  args:
+    executable: /bin/bash
+    creates: "{{ amp_binary_path }}"
+  become: true
+  become_user: "{{ amp_agent_user }}"
+  environment:
+    HOME: "{{ amp_agent_home }}"
+    PATH: "{{ amp_agent_path }}"
+
+- name: Ensure Amp runner service directory exists
+  ansible.builtin.file:
+    path: "{{ amp_runner_service_path | dirname }}"
+    state: directory
+    owner: "{{ amp_agent_user }}"
+    group: "{{ amp_agent_group }}"
+    mode: "0755"
+  become: true
+  become_user: root
+
+- name: Read Amp agent UID
+  ansible.builtin.command:
+    argv:
+      - id
+      - -u
+      - "{{ amp_agent_user }}"
+  register: amp_agent_uid_command
+  changed_when: false
+  become: true
+  become_user: root
+
+- name: Set Amp agent UID fact
+  ansible.builtin.set_fact:
+    amp_agent_uid: "{{ amp_agent_uid_command.stdout | int }}"
+
+- name: Enable lingering for Amp agent
+  ansible.builtin.command:
+    argv:
+      - loginctl
+      - enable-linger
+      - "{{ amp_agent_user }}"
+  changed_when: false
+  become: true
+  become_user: root
+
+- name: Ensure Amp agent user manager is running
+  ansible.builtin.systemd_service:
+    name: "user@{{ amp_agent_uid }}.service"
+    state: started
+  become: true
+  become_user: root
+
+- name: Install Amp runner systemd user service
+  ansible.builtin.copy:
+    dest: "{{ amp_runner_service_path }}"
+    owner: "{{ amp_agent_user }}"
+    group: "{{ amp_agent_group }}"
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Amp CLI runner
+      After=network-online.target
+
+      [Service]
+      Type=simple
+      WorkingDirectory={{ amp_runner_workspace }}
+      ExecStart={{ amp_binary_path }} --no-tui --runner-id {{ amp_runner_id }} --remote-control-terminal
+      Environment=HOME={{ amp_agent_home }}
+      Environment=PATH={{ amp_agent_path }}
+      Restart=on-failure
+      RestartSec=5s
+
+      [Install]
+      WantedBy=default.target
+  become: true
+  become_user: root
+  register: amp_runner_service_unit
+
+- name: Manage Amp runner systemd user service
+  ansible.builtin.systemd_service:
+    name: "{{ amp_runner_service_name }}"
+    daemon_reload: true
+    enabled: "{{ amp_runner_service_enabled }}"
+    state: "{{ amp_runner_service_state }}"
+  become: true
+  become_user: "{{ amp_agent_user }}"
+  environment:
+    HOME: "{{ amp_agent_home }}"
+    PATH: "{{ amp_agent_path }}"
+    XDG_RUNTIME_DIR: "/run/user/{{ amp_agent_uid }}"
+    DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ amp_agent_uid }}/bus"
+  when:
+    - amp_runner_service_enabled | bool or amp_runner_service_state == 'started'
