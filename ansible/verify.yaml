@@ -120,6 +120,14 @@
           - --version
       changed_when: false
 
+    - name: Verify Docker Buildx responds
+      ansible.builtin.command:
+        argv:
+          - docker
+          - buildx
+          - version
+      changed_when: false
+
     - name: Stat agent swap file
       ansible.builtin.stat:
         path: "{{ agent_swap_file_path }}"
@@ -719,10 +727,10 @@
         HOME: "{{ agent_home }}"
       changed_when: false
 
-    - name: Verify Omnara binary is on PATH in agent login shell
+    - name: Verify Herdr responds in agent login shell
       ansible.builtin.shell: |
         set -euo pipefail
-        {{ agent_shell }} -lic 'command -v omnara'
+        {{ agent_shell }} -lic '{{ agent_herdr_binary_name }} --version'
       args:
         executable: /bin/bash
       become: true
@@ -730,21 +738,6 @@
       environment:
         HOME: "{{ agent_home }}"
       changed_when: false
-
-    - name: Read Omnara auth status
-      ansible.builtin.command:
-        argv:
-          - "{{ agent_omnara_binary_name }}"
-          - auth
-          - status
-      become: true
-      become_user: "{{ agent_user }}"
-      environment:
-        HOME: "{{ agent_home }}"
-        PATH: "{{ agent_path }}"
-      register: omnara_auth_status
-      changed_when: false
-      failed_when: false
 
     - name: Verify Nub responds in agent login shell
       ansible.builtin.shell: |
@@ -770,7 +763,7 @@
           command -v rtk
           command -v mise
           command -v codex
-          command -v omnara
+          command -v herdr
           command -v nub
           codex --version
           test -d "{{ agent_workspace_root }}"

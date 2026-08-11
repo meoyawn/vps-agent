@@ -14,6 +14,9 @@ tasks:
     desc: Run ansible syntax validation
     cmds:
       - ansible-playbook -i {{.INVENTORY}} {{.PLAYBOOK}} --syntax-check --limit {{.TARGET}}
+    sources:
+      - ansible.cfg
+      - "{{.ANSIBLE_DIR}}/**/*"
 
   lint:
     desc: Run ansible-lint with repo-local Ansible temp paths
@@ -21,6 +24,7 @@ tasks:
       - mkdir -p .ansible/tmp/
       - ansible-lint {{.ANSIBLE_DIR}}
     sources:
+      - ansible.cfg
       - "{{.ANSIBLE_DIR}}/**/*"
 
   apply:
@@ -28,6 +32,7 @@ tasks:
     cmds:
       - ansible-playbook -i {{.INVENTORY}} {{.PLAYBOOK}} --limit {{.TARGET}}
     sources:
+      - ansible.cfg
       - "{{.FISH_CONFIG_DIR}}/config.fish"
       - "{{.FISH_CONFIG_DIR}}/**/*"
       - "{{.ANSIBLE_DIR}}/**/*"
@@ -42,6 +47,7 @@ tasks:
     cmds:
       - ./scripts/check-idempotence.sh {{.INVENTORY}} {{.PLAYBOOK}} {{.TARGET}}
     sources:
+      - ansible.cfg
       - "{{.FISH_CONFIG_DIR}}/config.fish"
       - "{{.FISH_CONFIG_DIR}}/**/*"
       - "{{.ANSIBLE_DIR}}/**/*"
@@ -52,6 +58,7 @@ tasks:
     cmds:
       - ansible-playbook -i {{.INVENTORY}} {{.ANSIBLE_DIR}}/verify.yaml --limit {{.TARGET}}
     sources:
+      - ansible.cfg
       - "{{.FISH_CONFIG_DIR}}/config.fish"
       - "{{.FISH_CONFIG_DIR}}/**/*"
       - "{{.ANSIBLE_DIR}}/**/*"
@@ -71,6 +78,7 @@ tasks:
       - task: verify
       - echo "check pass"
     sources:
+      - ansible.cfg
       - "{{.FISH_CONFIG_DIR}}/config.fish"
       - "{{.FISH_CONFIG_DIR}}/**/*"
       - "{{.HOME}}/.codex/skills/**/*"

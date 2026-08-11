@@ -13,10 +13,6 @@
         executable: /bin/bash
       changed_when: false
 
-    - name: Validate sshd and reload ssh
-      become: true
-      ansible.builtin.import_tasks: roles/sshd/handlers/reload.yaml
-
   tasks:
     - name: Assert CPU architecture is supported
       ansible.builtin.assert:
@@ -458,22 +454,16 @@
           register: agent_mise_install
           changed_when: "'__MISE_CHANGED__' in agent_mise_install.stdout_lines"
 
-        - name: Install Omnara for agent user
+        - name: Install Herdr for agent user
           ansible.builtin.shell: |
             set -euo pipefail
-            if command -v "{{ agent_omnara_binary_name }}" >/dev/null 2>&1; then
-              echo __OMNARA_UNCHANGED__
-              exit 0
-            fi
-            curl -fsSL "{{ agent_omnara_install_url }}" | bash
-            echo __OMNARA_CHANGED__
+            curl -fsSL "{{ agent_herdr_install_url }}" | sh
           args:
             executable: /bin/bash
+            creates: "{{ agent_herdr_binary_path }}"
           environment:
             HOME: "{{ agent_home }}"
             PATH: "{{ agent_path }}"
-          register: agent_omnara_install
-          changed_when: "'__OMNARA_CHANGED__' in agent_omnara_install.stdout_lines"
 
         - name: Install Nub for agent user
           ansible.builtin.shell: |

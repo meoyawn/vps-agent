@@ -2,7 +2,7 @@
 
 Run the agent on a VPS so you can close your laptop.
 
-**vps-agent** provisions an Ubuntu 24.04 ARM64 or x86_64 VPS for agent work, focused on [Codex remote connections](https://developers.openai.com/codex/remote-connections). It also sets up a persistent **tmux** shell, **mosh** support, tightened [**sshd** defaults](ansible/roles/sshd/), Docker, Bun, uv, Deno, Task, mise, Omnara, and local Codex skills/plugins.
+**vps-agent** provisions an Ubuntu 24.04 ARM64 or x86_64 VPS for agent work, focused on [Codex remote connections](https://developers.openai.com/codex/remote-connections). It also sets up a persistent **tmux** shell, **mosh** support, tightened [**sshd** defaults](ansible/roles/sshd/), Docker, Bun, uv, Deno, Task, mise, Herdr, and local Codex skills/plugins.
 
 ## Prerequisites
 
@@ -65,7 +65,7 @@ ssh devbox-agent 'fish -lic "whoami; command -v bun; command -v codex; codex --v
 ```
 
 - Clone repositories under **`~/workspace/`** on the VPS. That directory is created for the `agent` user so project paths stay in one place.
-- Manual login is expected for `gh`, Codex, and Omnara after provisioning.
+- Manual login is expected for `gh` and Codex after provisioning.
 - Use as many **tmux** windows (tab-like) or **panes** (splits in the same window) as you need, each in a different repo or working tree.
 - Use **mosh** when mobile or unstable networking matters, then attach to **tmux** inside it. See [orphaned Mosh notes](docs/orphaned-mosh.md) if disconnects leave stale sessions.
 - Zed remote projects are supported, but lowest priority here. Current tooling is still undercooked: Zed remote can orphan `codex-acp` on disconnect and brick the session. See [Zed notes](docs/zed.md).

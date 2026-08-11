@@ -58,6 +58,7 @@
   retries: 3
   delay: 5
   until: fish_config_sync is succeeded
+  changed_when: false
 
 - name: Ensure synced fish config is owned by agent
   ansible.builtin.file:

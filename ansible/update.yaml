@@ -76,29 +76,28 @@
         PATH: "{{ agent_path }}"
       changed_when: false
 
-    - name: Update Omnara for agent user
-      ansible.builtin.get_url:
-        url: "{{ agent_omnara_release_url }}"
-        dest: "{{ agent_omnara_binary_path }}"
-        owner: "{{ agent_user }}"
-        group: "{{ agent_group }}"
-        mode: "0711"
-        force: true
+    - name: Update Herdr for agent user
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_herdr_binary_path }}"
+          - update
       become: true
       become_user: "{{ agent_user }}"
       environment:
         HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
       changed_when: false
 
-    - name: Verify updated Omnara binary
+    - name: Verify updated Herdr binary
       ansible.builtin.command:
         argv:
-          - "{{ agent_omnara_binary_path }}"
+          - "{{ agent_herdr_binary_path }}"
           - --version
       become: true
       become_user: "{{ agent_user }}"
       environment:
         HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
       changed_when: false
 
     - name: Update mise for agent user

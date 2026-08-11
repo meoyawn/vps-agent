@@ -5,8 +5,10 @@
       - sshd
       - -t
   changed_when: false
+  listen: Validate sshd and reload ssh
 
 - name: Reload ssh.service
   ansible.builtin.systemd_service:
     name: "{{ sshd_service_name }}"
     state: reloaded
+  listen: Validate sshd and reload ssh

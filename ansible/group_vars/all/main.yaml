@@ -61,16 +61,9 @@ agent_mise_data_dir: "{{ agent_home }}/.local/share/mise"
 agent_mise_shims_dir: "{{ agent_mise_data_dir }}/shims"
 agent_mise_binary_path: "{{ agent_local_bin_dir }}/mise"
 
-agent_omnara_install_url: https://omnara.com/install/install.sh
-agent_omnara_binary_name: omnara
-agent_omnara_arch_map:
-  aarch64: arm64
-  arm64: arm64
-  x86_64: x64
-  amd64: x64
-agent_omnara_arch: "{{ agent_omnara_arch_map[agent_detected_arch] | default('') }}"
-agent_omnara_release_url: "https://releases.omnara.com/latest/omnara-linux-{{ agent_omnara_arch }}"
-agent_omnara_binary_path: "{{ agent_home }}/.omnara/bin/omnara"
+agent_herdr_install_url: https://herdr.dev/install.sh
+agent_herdr_binary_name: herdr
+agent_herdr_binary_path: "{{ agent_local_bin_dir }}/herdr"
 
 agent_nub_install_url: https://nubjs.com/install.sh
 agent_nub_install_root: "{{ agent_home }}/.nub"
@@ -94,6 +87,7 @@ agent_packages:
   - bubblewrap
   - ca-certificates
   - curl
+  - docker-buildx
   - docker.io
   - docker-compose-v2
   - gh
