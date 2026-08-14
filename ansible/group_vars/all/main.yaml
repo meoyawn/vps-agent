@@ -108,6 +108,8 @@ ansible_controller_ssh_dir: "{{ lookup('env', 'HOME') | trim }}/.ssh"
 agent_ssh_dir: "{{ agent_home }}/.ssh"
 agent_authorized_keys_path: "{{ agent_ssh_dir }}/authorized_keys"
 agent_ssh_config_path: "{{ agent_ssh_dir }}/config"
+agent_github_known_host_key: >-
+  github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
 
 ansible_controller_gitconfig_path: "{{ lookup('env', 'HOME') | trim }}/.gitconfig"
 agent_gitconfig_path: "{{ agent_home }}/.gitconfig"

@@ -167,6 +167,20 @@
               - --exclude=*.socket
           changed_when: false
 
+        - name: Ensure GitHub SSH host key is trusted by agent
+          ansible.builtin.known_hosts:
+            path: "{{ agent_ssh_dir }}/known_hosts"
+            name: github.com
+            key: "{{ agent_github_known_host_key }}"
+            state: present
+
+        - name: Secure agent SSH known hosts
+          ansible.builtin.file:
+            path: "{{ agent_ssh_dir }}/known_hosts"
+            owner: "{{ agent_user }}"
+            group: "{{ agent_group }}"
+            mode: "0600"
+
         - name: Find synced SSH files
           ansible.builtin.find:
             paths: "{{ agent_ssh_dir }}"
