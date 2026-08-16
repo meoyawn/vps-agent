@@ -293,6 +293,14 @@
             executable: /bin/bash
             creates: /usr/local/bin/scc
 
+        - name: Install TruffleHog
+          ansible.builtin.shell: |
+            set -euo pipefail
+            curl -fsSL "{{ agent_trufflehog_install_url }}" | sh -s -- -b /usr/local/bin
+          args:
+            executable: /bin/bash
+            creates: "{{ agent_trufflehog_binary_path }}"
+
         - name: Install pkgx
           ansible.builtin.shell: |
             set -euo pipefail

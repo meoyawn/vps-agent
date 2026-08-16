@@ -104,6 +104,10 @@ agent_docker_compose_compat_path: /usr/local/bin/docker-compose
 agent_scc_download_url: >-
   https://github.com/boyter/scc/releases/latest/download/scc_Linux_{{ agent_scc_arch }}.tar.gz
 
+agent_trufflehog_install_url: >-
+  https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh
+agent_trufflehog_binary_path: /usr/local/bin/trufflehog
+
 ansible_controller_ssh_dir: "{{ lookup('env', 'HOME') | trim }}/.ssh"
 agent_ssh_dir: "{{ agent_home }}/.ssh"
 agent_authorized_keys_path: "{{ agent_ssh_dir }}/authorized_keys"

@@ -1113,6 +1113,13 @@
           - --version
       changed_when: false
 
+    - name: Verify TruffleHog responds
+      ansible.builtin.command:
+        argv:
+          - trufflehog
+          - --version
+      changed_when: false
+
     - name: Verify pkgx can run lazydocker
       ansible.builtin.command:
         argv:
