@@ -688,6 +688,18 @@
         PATH: "{{ agent_path }}"
       changed_when: false
 
+    - name: Verify tspls responds
+      ansible.builtin.command:
+        argv:
+          - tspls
+          - help
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
+      changed_when: false
+
     - name: Read Codex auth status
       ansible.builtin.command:
         argv:
