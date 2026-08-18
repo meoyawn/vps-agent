@@ -98,12 +98,16 @@
           - -version
       changed_when: false
 
-    - name: Verify Probe responds
-      ansible.builtin.command:
-        argv:
-          - probe
-          - --version
-      changed_when: false
+    - name: Stat Probe binary
+      ansible.builtin.stat:
+        path: /usr/local/bin/probe
+      register: probe_binary
+
+    - name: Assert Probe is absent
+      ansible.builtin.assert:
+        that:
+          - not probe_binary.stat.exists
+        fail_msg: "expected /usr/local/bin/probe to be absent"
 
     - name: Verify Docker runs a minimal container as agent
       ansible.builtin.command:
@@ -665,6 +669,18 @@
         argv:
           - "{{ agent_codex_binary_name }}"
           - --version
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
+      changed_when: false
+
+    - name: Verify gopls responds
+      ansible.builtin.command:
+        argv:
+          - gopls
+          - version
       become: true
       become_user: "{{ agent_user }}"
       environment:
