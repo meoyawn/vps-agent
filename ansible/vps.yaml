@@ -309,6 +309,14 @@
             executable: /bin/bash
             creates: /usr/local/bin/pkgx
 
+        - name: Install Probe
+          ansible.builtin.shell: |
+            set -euo pipefail
+            curl -fsSL https://raw.githubusercontent.com/probelabs/probe/main/install.sh | bash
+          args:
+            executable: /bin/bash
+            creates: /usr/local/bin/probe
+
     - name: Apply firewall policy
       block:
         - name: Install UFW

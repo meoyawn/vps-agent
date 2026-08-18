@@ -98,6 +98,13 @@
           - -version
       changed_when: false
 
+    - name: Verify Probe responds
+      ansible.builtin.command:
+        argv:
+          - probe
+          - --version
+      changed_when: false
+
     - name: Verify Docker runs a minimal container as agent
       ansible.builtin.command:
         argv:
