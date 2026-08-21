@@ -30,6 +30,43 @@
             state: present
             update_cache: true
 
+        - name: Install Node.js v26.7.0
+          vars:
+            agent_node_version: 26.7.0
+            agent_node_archive_arch: "{{ {'arm64': 'arm64', 'x86_64': 'x64'}[agent_scc_arch] }}"
+            agent_node_archive_name: >-
+              node-v{{ agent_node_version }}-linux-{{ agent_node_archive_arch }}
+            agent_node_archive_path: >-
+              /var/cache/{{ agent_node_archive_name }}.tar.xz
+            agent_node_install_dir: /opt/{{ agent_node_archive_name }}
+          block:
+            - name: Download pinned Node.js archive
+              ansible.builtin.get_url:
+                url: >-
+                  https://nodejs.org/dist/v{{ agent_node_version }}/{{ agent_node_archive_name }}.tar.xz
+                dest: "{{ agent_node_archive_path }}"
+                mode: "0644"
+                checksum: >-
+                  sha256:https://nodejs.org/dist/v{{ agent_node_version }}/SHASUMS256.txt
+
+            - name: Extract pinned Node.js archive
+              ansible.builtin.unarchive:
+                src: "{{ agent_node_archive_path }}"
+                dest: /opt
+                remote_src: true
+                creates: "{{ agent_node_install_dir }}"
+
+            - name: Link pinned Node.js executables
+              ansible.builtin.file:
+                src: "{{ agent_node_install_dir }}/bin/{{ item }}"
+                dest: /usr/local/bin/{{ item }}
+                state: link
+                force: true
+              loop:
+                - node
+                - npm
+                - npx
+
         - name: Uninstall conflicting system packages
           ansible.builtin.apt:
             name: "{{ uninstall_packages }}"

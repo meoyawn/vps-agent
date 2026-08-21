@@ -186,6 +186,24 @@
           - -version
       changed_when: false
 
+    - name: Read Node.js version
+      ansible.builtin.command:
+        argv:
+          - node
+          - --version
+      register: agent_node_version
+      changed_when: false
+
+    - name: Assert Node.js version is supported
+      ansible.builtin.assert:
+        that:
+          - >-
+            (agent_node_version.stdout | regex_replace('^v', ''))
+            is ansible.builtin.version('26.7.0', 'ge', version_type='semver')
+        fail_msg: >-
+          expected Node.js 26.7.0 or newer;
+          got {{ agent_node_version.stdout | default('missing') }}
+
     - name: Verify Playwright can install Chromium
       ansible.builtin.command:
         argv:
