@@ -16,6 +16,7 @@
         argv:
           - "{{ agent_bun_binary_path }}"
           - upgrade
+          - --stable
       become: true
       become_user: "{{ agent_user }}"
       environment:
@@ -23,11 +24,48 @@
         PATH: "{{ agent_path }}"
       changed_when: false
 
+    - name: Read updated Bun version
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_bun_binary_path }}"
+          - --version
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
+      register: agent_updated_bun_version
+      changed_when: false
+
+    - name: Assert updated Bun version is supported
+      ansible.builtin.assert:
+        that:
+          - >-
+            agent_updated_bun_version.stdout
+            is ansible.builtin.version('1.4.0', 'ge', version_type='semver')
+        fail_msg: >-
+          expected Bun 1.4.0 or newer after update;
+          got {{ agent_updated_bun_version.stdout | default('missing') }}
+
     - name: Update Nub for agent user
       ansible.builtin.command:
         argv:
           - "{{ agent_nub_binary_path }}"
           - upgrade
+          - --stable
+          - --yes
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
+      changed_when: false
+
+    - name: Verify updated Nub binary
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_nub_binary_path }}"
+          - --version
       become: true
       become_user: "{{ agent_user }}"
       environment:
