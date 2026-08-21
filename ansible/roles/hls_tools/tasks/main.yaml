@@ -16,18 +16,6 @@
       Set hls_tools_license_accepted to true only after reviewing and accepting
       Apple's HLS Tools license agreement.
 
-- name: Install Apple HLS Tools prerequisites
-  ansible.builtin.apt:
-    name:
-      - coreutils
-      - curl
-      - man-db
-      - openssl
-      - tar
-      - zlib1g
-    state: present
-    update_cache: true
-
 - name: Create Apple HLS Tools installation directory
   ansible.builtin.file:
     path: "{{ hls_tools_install_dir }}"

@@ -37,6 +37,20 @@ Run the agent on a VPS so you can close your laptop.
 
 - Provision **Ubuntu 24.04** on **ARM64** or **x86_64**.
 
+## Installed command-line tools
+
+Ansible installs and configures these user-facing commands. Package dependencies may add other implementation binaries.
+
+| Source | Commands |
+| --- | --- |
+| Ubuntu packages | `bwrap`, `docker`, `docker buildx`, `docker compose`, `docker-compose`, `ffmpeg`, `ffplay`, `ffprobe`, `fish`, `gh`, `go`, `gofmt`, `java` and the companion JDK tools, `make`, `mosh`, `mosh-client`, `mosh-server`, `rg`, and `unzip` |
+| Pinned Node.js archive | `node` v26.7.0, `npm`, and `npx` |
+| Upstream installers | `bun`, `bunx`, `codex`, `deno`, `nub`, `nubx`, `omnara`, `pkgx`, `rtk`, `scc`, `task`, `trufflehog`, `uv`, and `uvx` |
+| Go-installed language tools | `gopls` v0.23.0 and `tspls` v0.1.0 |
+| Apple HLS Tools (x86_64 only) | `id3taggenerator`, `mediafilesegmenter`, `mediastreamsegmenter`, `mediastreamvalidator`, `mediasubtitlesegmenter`, and `variantplaylistcreator` |
+
+The `/usr/local/bin/tmux` command is an Ansible-managed terminal compatibility wrapper around Ubuntu's `/usr/bin/tmux`.
+
 ## Apply config
 
 1. Create an inventory file at **`ansible/inventory/hosts.yaml`**. It is gitignored on purpose. Copy the example and edit it for your VPS; the group must be **`vps`** because the playbooks target that group.

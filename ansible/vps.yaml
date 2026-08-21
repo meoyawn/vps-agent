@@ -353,11 +353,6 @@
 
     - name: Apply firewall policy
       block:
-        - name: Install UFW
-          ansible.builtin.apt:
-            name: ufw
-            state: present
-
         - name: Check numbered ufw rules before reconciliation
           ansible.builtin.command:
             argv:

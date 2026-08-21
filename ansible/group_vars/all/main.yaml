@@ -74,25 +74,17 @@ agent_path_entries:
 agent_path: "{{ agent_path_entries | join(':') }}"
 
 agent_packages:
-  - bash
   - bubblewrap
-  - ca-certificates
-  - curl
   - docker-buildx
   - docker.io
   - docker-compose-v2
   - gh
-  - git
   - golang-go
-  - jq
   - libgbm1
   - libgtk-3-0t64
   - mosh
   - openjdk-25-jdk-headless
-  - openssh-client
   - ripgrep
-  - rsync
-  - tmux
   - unzip
   - make
   - ffmpeg

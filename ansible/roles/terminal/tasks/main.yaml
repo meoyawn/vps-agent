@@ -1,12 +1,3 @@
----
-- name: Install terminal support packages
-  ansible.builtin.apt:
-    name:
-      - ncurses-bin
-      - ncurses-term
-      - tmux
-    state: present
-
 - name: Ensure Ghostty terminfo source directory exists
   ansible.builtin.file:
     path: "{{ terminal_ghostty_terminfo_dest | dirname }}"

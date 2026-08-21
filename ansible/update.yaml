@@ -11,6 +11,134 @@
         autoclean: true
         cache_valid_time: 3600
 
+    - name: Update Go to the latest stable release
+      vars:
+        agent_go_update_arch_map:
+          aarch64: arm64
+          arm64: arm64
+          x86_64: amd64
+          amd64: amd64
+        agent_go_install_dir: /usr/local/go
+        agent_go_archive_path: /var/cache/go-stable.tar.gz
+      block:
+        - name: Assert Go release architecture is supported
+          ansible.builtin.assert:
+            that:
+              - agent_detected_arch in agent_go_update_arch_map
+            fail_msg: >-
+              unsupported CPU architecture {{ agent_detected_arch | default('unknown') }}
+              for Go stable releases
+
+        - name: Read stable Go release metadata
+          ansible.builtin.uri:
+            url: https://go.dev/dl/?mode=json
+            return_content: true
+          register: agent_go_release_metadata
+          changed_when: false
+
+        - name: Assert stable Go release metadata is available
+          ansible.builtin.assert:
+            that:
+              - agent_go_release_metadata.json is defined
+              - >-
+                agent_go_release_metadata.json
+                | selectattr('stable', 'equalto', true)
+                | list
+                | length > 0
+            fail_msg: expected at least one stable release from go.dev
+
+        - name: Select latest stable Go release
+          ansible.builtin.set_fact:
+            agent_go_latest_release: >-
+              {{ agent_go_release_metadata.json
+                | selectattr('stable', 'equalto', true)
+                | first }}
+
+        - name: Select stable Go archive for host
+          ansible.builtin.set_fact:
+            agent_go_release_archives: >-
+              {{ agent_go_latest_release.files
+                | selectattr('os', 'equalto', 'linux')
+                | selectattr('arch', 'equalto', agent_go_update_arch_map[agent_detected_arch])
+                | selectattr('kind', 'equalto', 'archive')
+                | list }}
+
+        - name: Assert stable Go archive is available for host
+          ansible.builtin.assert:
+            that:
+              - agent_go_release_archives | length == 1
+            fail_msg: >-
+              expected one Linux {{ agent_go_update_arch_map[agent_detected_arch] }} archive
+              for {{ agent_go_latest_release.version }}
+
+        - name: Select stable Go archive metadata
+          ansible.builtin.set_fact:
+            agent_go_release_archive: "{{ agent_go_release_archives | first }}"
+
+        - name: Read installed Go version
+          ansible.builtin.command:
+            argv:
+              - go
+              - version
+          register: agent_installed_go_version
+          changed_when: false
+          failed_when: false
+
+        - name: Determine whether Go needs an update
+          ansible.builtin.set_fact:
+            agent_go_update_required: >-
+              {{ ('go version ' ~ agent_go_latest_release.version ~ ' ')
+                not in (agent_installed_go_version.stdout | default('')) }}
+
+        - name: Download latest stable Go archive
+          ansible.builtin.get_url:
+            url: "https://go.dev/dl/{{ agent_go_release_archive.filename }}"
+            dest: "{{ agent_go_archive_path }}"
+            mode: "0644"
+            checksum: "sha256:{{ agent_go_release_archive.sha256 }}"
+          when: agent_go_update_required
+
+        - name: Remove previous official Go installation
+          ansible.builtin.file:
+            path: "{{ agent_go_install_dir }}"
+            state: absent
+          when: agent_go_update_required
+
+        - name: Install latest stable Go archive
+          ansible.builtin.unarchive:
+            src: "{{ agent_go_archive_path }}"
+            dest: /usr/local
+            remote_src: true
+          when: agent_go_update_required
+
+        - name: Link latest stable Go executables
+          ansible.builtin.file:
+            src: "{{ agent_go_install_dir }}/bin/{{ item }}"
+            dest: /usr/local/bin/{{ item }}
+            state: link
+            force: true
+          loop:
+            - go
+            - gofmt
+
+        - name: Read updated Go version
+          ansible.builtin.command:
+            argv:
+              - /usr/local/bin/go
+              - version
+          register: agent_updated_go_version
+          changed_when: false
+
+        - name: Assert Go is updated to the latest stable release
+          ansible.builtin.assert:
+            that:
+              - >-
+                ('go version ' ~ agent_go_latest_release.version ~ ' ')
+                in agent_updated_go_version.stdout
+            fail_msg: >-
+              expected {{ agent_go_latest_release.version }} after update;
+              got {{ agent_updated_go_version.stdout | default('missing') }}
+
     - name: Update Bun for agent user
       ansible.builtin.command:
         argv:

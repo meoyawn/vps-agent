@@ -17,12 +17,12 @@
       ansible.builtin.package_facts:
         manager: auto
 
-    - name: Assert base packages are installed
+    - name: Assert Ansible-managed packages are installed
       ansible.builtin.assert:
         that:
           - ansible_facts['packages'][item] is defined
         fail_msg: "expected package {{ item }} to be installed"
-      loop: "{{ agent_packages + ['fish', 'ufw'] }}"
+      loop: "{{ agent_packages + ['fish'] }}"
 
     - name: Assert conflicting system packages are absent
       ansible.builtin.assert:
@@ -68,13 +68,6 @@
           - test
           - -d
           - "{{ agent_workspace_root }}"
-      changed_when: false
-
-    - name: Verify ufw is installed
-      ansible.builtin.command:
-        argv:
-          - ufw
-          - --version
       changed_when: false
 
     - name: Verify mosh-server is installed

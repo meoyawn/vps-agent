@@ -1,5 +1,3 @@
----
-sshd_hardening_package: openssh-server
 sshd_hardening_config_path: /etc/ssh/sshd_config.d/60-vps-agent-hardening.conf
 sshd_service_name: ssh.service
 sshd_hardening_directives:
