@@ -98,7 +98,7 @@ agent_scc_download_url: >-
 
 agent_trufflehog_install_url: >-
   https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh
-agent_trufflehog_binary_path: /usr/local/bin/trufflehog
+agent_trufflehog_binary_path: "{{ agent_local_bin_dir }}/trufflehog"
 
 ansible_controller_ssh_dir: "{{ lookup('env', 'HOME') | trim }}/.ssh"
 agent_ssh_dir: "{{ agent_home }}/.ssh"

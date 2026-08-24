@@ -1159,11 +1159,74 @@
           - --version
       changed_when: false
 
-    - name: Verify TruffleHog responds
+    - name: Inspect TruffleHog binary
+      ansible.builtin.stat:
+        path: "{{ agent_trufflehog_binary_path }}"
+      register: agent_trufflehog_binary
+
+    - name: Inspect agent local binary directory
+      ansible.builtin.stat:
+        path: "{{ agent_local_bin_dir }}"
+      register: agent_local_bin_directory
+
+    - name: Assert TruffleHog installation is self-updatable by agent
+      ansible.builtin.assert:
+        that:
+          - agent_local_bin_directory.stat.exists
+          - agent_local_bin_directory.stat.isdir
+          - agent_local_bin_directory.stat.pw_name == agent_user
+          - agent_local_bin_directory.stat.gr_name == agent_group
+          - agent_local_bin_directory.stat.wusr
+          - agent_local_bin_directory.stat.xusr
+          - agent_trufflehog_binary.stat.exists
+          - agent_trufflehog_binary.stat.isreg
+          - agent_trufflehog_binary.stat.pw_name == agent_user
+          - agent_trufflehog_binary.stat.gr_name == agent_group
+          - agent_trufflehog_binary.stat.wusr
+          - agent_trufflehog_binary.stat.xusr
+        fail_msg: >-
+          expected {{ agent_trufflehog_binary_path }} and its directory to be
+          agent-owned and user-writable; got directory
+          owner={{ agent_local_bin_directory.stat.pw_name | default('missing') }}
+          group={{ agent_local_bin_directory.stat.gr_name | default('missing') }}
+          mode={{ agent_local_bin_directory.stat.mode | default('missing') }},
+          binary exists={{ agent_trufflehog_binary.stat.exists | default(false) }}
+          owner={{ agent_trufflehog_binary.stat.pw_name | default('missing') }}
+          group={{ agent_trufflehog_binary.stat.gr_name | default('missing') }}
+          mode={{ agent_trufflehog_binary.stat.mode | default('missing') }}
+
+    - name: Resolve TruffleHog binary as agent
+      ansible.builtin.command:
+        argv:
+          - fish
+          - -c
+          - command -s trufflehog
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
+      register: agent_trufflehog_resolved_path
+      changed_when: false
+
+    - name: Assert agent resolves its self-updatable TruffleHog binary
+      ansible.builtin.assert:
+        that:
+          - agent_trufflehog_resolved_path.stdout == agent_trufflehog_binary_path
+        fail_msg: >-
+          expected agent TruffleHog path {{ agent_trufflehog_binary_path }};
+          got {{ agent_trufflehog_resolved_path.stdout | default('missing') }}
+
+    - name: Verify TruffleHog responds as agent
       ansible.builtin.command:
         argv:
           - trufflehog
           - --version
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        PATH: "{{ agent_path }}"
       changed_when: false
 
     - name: Verify pkgx can run lazydocker
