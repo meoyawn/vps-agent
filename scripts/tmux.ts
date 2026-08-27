@@ -1,36 +1,26 @@
 #!/usr/bin/env bun
 
 import { $ } from "bun";
-import inventory from "../ansible/inventory/hosts.yaml" with { type: "yaml" };
+import { resolveAnsibleHost } from "./ansible-inventory.ts";
 
 async function main(): Promise<0 | 1> {
-  const children = inventory.all?.children ?? {};
-  const target = Object.keys(children)[0];
+  const [inventoryPath, target] = process.argv.slice(2);
 
-  if (!target) {
-    console.error("inventory has no children");
+  if (!inventoryPath || !target) {
+    console.error("usage: tmux.ts <inventory path> <target>");
     return 1;
   }
 
-  const hosts = children[target]?.hosts ?? {};
-  const [hostName] = Object.keys(hosts);
+  const ansibleHost = await resolveAnsibleHost(inventoryPath, target);
 
-  if (!hostName) {
-    console.error(`target has no hosts: ${target}`);
-    return 1;
-  }
-
-  const childHost = hosts[hostName];
-  const ansibleHost =
-    childHost?.ansible_host ?? inventory.all?.hosts?.[hostName]?.ansible_host;
-
-  if (typeof ansibleHost !== "string" || ansibleHost.length === 0) {
-    console.error(`host has no ansible_host: ${hostName}`);
+  if (!ansibleHost) {
+    console.error(`target has no host with ansible_host: ${target}`);
     return 1;
   }
 
   const hostSpec = `agent@${ansibleHost}`;
-  const remoteCommand = "exec tmux -T extkeys,hyperlinks new-session -A -s macos";
+  const remoteCommand =
+    "exec tmux -T extkeys,hyperlinks new-session -A -s macos";
 
   await $`ssh -tt ${hostSpec} ${remoteCommand}`;
   return 0;
