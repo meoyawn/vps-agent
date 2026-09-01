@@ -36,9 +36,11 @@
         "# BEGIN ANSIBLE MANAGED LOCAL PLUGINS",
         "# END ANSIBLE MANAGED LOCAL PLUGINS",
     }
+    hook_state_prefix = re.escape("{{ agent_codex_dir }}/hooks.json:")
     managed_section = re.compile(
         r'^\[(?:marketplaces\.(?:caveman-repo|local-plugins)|'
-        r'plugins\."(?:caveman@caveman-repo|[^"]+@local-plugins)")\]$'
+        r'plugins\."(?:caveman@caveman-repo|[^"]+@local-plugins)"|'
+        rf'hooks\.state\."{hook_state_prefix}[^"]*")\]$'
     )
 
     lines = text.splitlines()
@@ -68,12 +70,8 @@
         index += 1
 
     base = "\n".join(kept).strip()
-    caveman_block = {{ agent_codex_caveman_config_block | trim | to_json }}
     local_plugins_block = {{ agent_codex_local_plugins_config_block | trim | to_json }}
     managed_blocks = [
-        "# BEGIN ANSIBLE MANAGED CAVEMAN PLUGIN\n"
-        + caveman_block
-        + "\n# END ANSIBLE MANAGED CAVEMAN PLUGIN",
         "# BEGIN ANSIBLE MANAGED LOCAL PLUGINS\n"
         + local_plugins_block
         + "\n# END ANSIBLE MANAGED LOCAL PLUGINS",
@@ -132,13 +130,10 @@
     - "{{ agent_codex_skills_dir }}"
     - "{{ agent_codex_plugins_dir }}"
 
-- name: Install Codex hooks
-  ansible.builtin.copy:
-    src: hooks.json
-    dest: "{{ agent_codex_dir }}/hooks.json"
-    owner: "{{ agent_user }}"
-    group: "{{ agent_group }}"
-    mode: "0644"
+- name: Remove Codex hooks
+  ansible.builtin.file:
+    path: "{{ agent_codex_dir }}/hooks.json"
+    state: absent
 
 - name: Sync controller Codex agents override
   ansible.builtin.copy:

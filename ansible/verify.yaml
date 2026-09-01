@@ -858,36 +858,33 @@
         src: "{{ agent_codex_config_path }}"
       register: codex_config_content
 
-    - name: Assert managed Codex plugin config is present
+    - name: Assert managed Codex plugin config excludes caveman
       ansible.builtin.assert:
         that:
-          - "'[marketplaces.caveman-repo]' in (codex_config_content.content | b64decode)"
-          - '''[plugins."caveman@caveman-repo"]'' in (codex_config_content.content | b64decode)'
+          - "'[marketplaces.caveman-repo]' not in (codex_config_content.content | b64decode)"
+          - '''[plugins."caveman@caveman-repo"]'' not in (codex_config_content.content | b64decode)'
+          - >-
+            (agent_codex_dir ~ '/hooks.json:')
+            not in (codex_config_content.content | b64decode)
           - "'[marketplaces.local-plugins]' in (codex_config_content.content | b64decode)"
           - '''source = "'' ~ agent_codex_dir ~ ''"'' in (codex_config_content.content | b64decode)'
           - '''[plugins."code-review-graph@local-plugins"]'' in (codex_config_content.content | b64decode)'
-        fail_msg: "expected managed caveman and local plugin blocks in {{ agent_codex_config_path }}"
+        fail_msg: >-
+          expected caveman plugin config to be absent and local plugin config
+          to be present in {{ agent_codex_config_path }}
 
     - name: Stat Codex hooks
       ansible.builtin.stat:
         path: "{{ agent_codex_dir }}/hooks.json"
       register: codex_hooks_stat
 
-    - name: Assert Codex hooks are managed
+    - name: Assert Codex hooks are absent
       ansible.builtin.assert:
         that:
-          - codex_hooks_stat.stat.exists
-          - codex_hooks_stat.stat.isreg
-          - codex_hooks_stat.stat.pw_name == agent_user
-          - codex_hooks_stat.stat.mode == '0644'
-          - codex_hooks_stat.stat.size > 0
+          - not codex_hooks_stat.stat.exists
         fail_msg: >-
-          expected {{ agent_codex_dir }}/hooks.json to exist as a non-empty regular file
-          0644 owned by {{ agent_user }};
+          expected {{ agent_codex_dir }}/hooks.json to be absent;
           got exists={{ codex_hooks_stat.stat.exists | default(false) }}
-          mode={{ codex_hooks_stat.stat.mode | default('missing') }}
-          owner={{ codex_hooks_stat.stat.pw_name | default('missing') }}
-          size={{ codex_hooks_stat.stat.size | default('missing') }}
 
     - name: Stat synced Codex agents override
       ansible.builtin.stat:
@@ -981,7 +978,7 @@
           expected at least one .codex-plugin directory under {{ agent_codex_plugins_dir }};
           got {{ codex_plugin_definitions.matched | default(0) }}
 
-    - name: Verify Codex config and hooks load
+    - name: Verify Codex config loads
       ansible.builtin.command:
         argv:
           - "{{ agent_codex_binary_name }}"

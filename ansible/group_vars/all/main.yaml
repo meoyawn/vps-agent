@@ -125,17 +125,6 @@ agent_codex_plugins_dir: "{{ agent_codex_dir }}/plugins"
 
 agent_gh_config_dir: "{{ agent_home }}/.config/gh"
 
-agent_codex_caveman_config_block: |
-  [marketplaces.caveman-repo]
-  last_updated = "2026-05-28T22:49:11Z"
-  last_revision = "ef6050c5e1848b6880ff47c32ade1a608a64f85e"
-  source_type = "git"
-  source = "https://github.com/JuliusBrussee/caveman.git"
-  ref = "v1.7.0"
-
-  [plugins."caveman@caveman-repo"]
-  enabled = true
-
 agent_codex_local_plugins_config_block: |
   [marketplaces.local-plugins]
   source_type = "local"
