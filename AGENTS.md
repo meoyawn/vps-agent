@@ -8,7 +8,7 @@
 
 ## Rules
 
-- T3 Code runs on Node.js. Use `nubx -y t3@latest ...` for its package runner; never use `npx`, Bun, or a global T3 package.
+- Never install CLI tools as npm packages. Treat npm package installation as a high security risk. Install pinned native binaries and verify their checksums instead.
 - `nub` / `nubx` are already provisioned by Ansible. Do not replace them with `npx`, `bunx`, or another package runner.
 - Keep existing Bun-backed repository tooling unchanged; do not use Bun for Node/T3 workflows.
 - never write yaml extension as `.yml`, do `.yaml`
