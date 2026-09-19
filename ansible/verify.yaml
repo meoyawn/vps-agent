@@ -786,6 +786,18 @@
         HOME: "{{ agent_home }}"
       changed_when: false
 
+    - name: Verify Moon responds in agent login shell
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_shell }}"
+          - -lic
+          - moon --version
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      changed_when: false
+
     - name: Verify rtk responds in agent login shell
       ansible.builtin.shell: |
         set -euo pipefail

@@ -549,6 +549,59 @@
           environment:
             HOME: "{{ agent_home }}"
 
+        - name: Ensure Moon v2.5.5 or newer for agent user
+          vars:
+            agent_moon_version: 2.5.5
+            agent_moon_arch: "{{ {'arm64': 'aarch64', 'x86_64': 'x86_64'}[agent_scc_arch] }}"
+            agent_moon_archive_name: "moon_cli-{{ agent_moon_arch }}-unknown-linux-gnu"
+            agent_moon_archive_path: >-
+              {{ agent_home }}/.cache/moon/{{ agent_moon_version }}-{{ agent_moon_archive_name }}.tar.xz
+            agent_moon_checksums:
+              aarch64: 39d55e88774677181d1af3566c4ccd2994cd2d9d8199fcf30dc2d6defc05ac78
+              x86_64: f397057a22c88ff9e4b28a4a2fbf01d99f4d9a4f35e5a42634255a9f509ccbd6
+          block:
+            - name: Ensure Moon cache and binary directories exist
+              ansible.builtin.file:
+                path: "{{ item }}"
+                state: directory
+                mode: "0755"
+              loop:
+                - "{{ agent_home }}/.cache/moon"
+                - "{{ agent_local_bin_dir }}"
+
+            - name: Download pinned Moon archive
+              ansible.builtin.get_url:
+                url: >-
+                  https://github.com/moonrepo/moon/releases/download/v{{ agent_moon_version }}/{{ agent_moon_archive_name }}.tar.xz
+                dest: "{{ agent_moon_archive_path }}"
+                mode: "0644"
+                checksum: "sha256:{{ agent_moon_checksums[agent_moon_arch] }}"
+
+            - name: Read installed Moon version
+              ansible.builtin.command:
+                argv:
+                  - "{{ agent_local_bin_dir }}/moon"
+                  - --version
+              register: agent_installed_moon_version
+              changed_when: false
+              failed_when: false
+
+            - name: Install Moon binaries unless a newer release is installed
+              ansible.builtin.unarchive:
+                src: "{{ agent_moon_archive_path }}"
+                dest: "{{ agent_local_bin_dir }}"
+                remote_src: true
+                include:
+                  - "{{ agent_moon_archive_name }}/moon"
+                  - "{{ agent_moon_archive_name }}/moonx"
+                extra_opts:
+                  - --strip-components=1
+                mode: "0755"
+              when: >-
+                agent_installed_moon_version.rc != 0
+                or (agent_installed_moon_version.stdout | trim | regex_replace('^moon ', ''))
+                is ansible.builtin.version(agent_moon_version, 'le', version_type='semver')
+
         - name: Install TruffleHog for agent user
           ansible.builtin.shell: |
             set -euo pipefail

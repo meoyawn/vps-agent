@@ -201,6 +201,86 @@
         PATH: "{{ agent_path }}"
       changed_when: false
 
+    - name: Update Moon to the latest stable release for agent user
+      become: true
+      become_user: "{{ agent_user }}"
+      tags:
+        - moon
+      vars:
+        agent_moon_update_arch_map:
+          aarch64: aarch64
+          arm64: aarch64
+          x86_64: x86_64
+          amd64: x86_64
+        agent_moon_archive_name: >-
+          moon_cli-{{ agent_moon_update_arch_map[agent_detected_arch] }}-unknown-linux-gnu
+        agent_moon_release_url: >-
+          https://github.com/moonrepo/moon/releases/download/{{ agent_moon_latest_release.json.tag_name }}
+        agent_moon_archive_path: >-
+          {{ agent_home }}/.cache/moon/{{ agent_moon_latest_release.json.tag_name
+            | regex_replace('^v', '') }}-{{ agent_moon_archive_name }}.tar.xz
+      block:
+        - name: Assert Moon release architecture is supported
+          ansible.builtin.assert:
+            that:
+              - agent_detected_arch in agent_moon_update_arch_map
+            fail_msg: >-
+              unsupported CPU architecture {{ agent_detected_arch | default('unknown') }}
+              for Moon stable releases
+
+        - name: Read latest stable Moon release metadata
+          ansible.builtin.uri:
+            url: https://api.github.com/repos/moonrepo/moon/releases/latest
+            return_content: true
+          register: agent_moon_latest_release
+          changed_when: false
+
+        - name: Ensure Moon update directories exist
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: directory
+            mode: "0755"
+          loop:
+            - "{{ agent_home }}/.cache/moon"
+            - "{{ agent_local_bin_dir }}"
+
+        - name: Download latest stable Moon archive with checksum verification
+          ansible.builtin.get_url:
+            url: "{{ agent_moon_release_url }}/{{ agent_moon_archive_name }}.tar.xz"
+            dest: "{{ agent_moon_archive_path }}"
+            mode: "0644"
+            checksum: "sha256:{{ agent_moon_release_url }}/sha256.sum"
+
+        - name: Install latest stable Moon binaries
+          ansible.builtin.unarchive:
+            src: "{{ agent_moon_archive_path }}"
+            dest: "{{ agent_local_bin_dir }}"
+            remote_src: true
+            include:
+              - "{{ agent_moon_archive_name }}/moon"
+              - "{{ agent_moon_archive_name }}/moonx"
+            extra_opts:
+              - --strip-components=1
+            mode: "0755"
+
+        - name: Read updated Moon version
+          ansible.builtin.command:
+            argv:
+              - "{{ agent_local_bin_dir }}/moon"
+              - --version
+          register: agent_updated_moon_version
+          changed_when: false
+
+        - name: Assert Moon is updated to the latest stable release
+          ansible.builtin.assert:
+            that:
+              - >-
+                agent_updated_moon_version.stdout | trim
+                == 'moon ' ~ (agent_moon_latest_release.json.tag_name | regex_replace('^v', ''))
+            fail_msg: >-
+              expected {{ agent_moon_latest_release.json.tag_name }} after update;
+              got {{ agent_updated_moon_version.stdout | default('missing') }}
+
     - name: Update uv for agent user
       ansible.builtin.command:
         argv:
