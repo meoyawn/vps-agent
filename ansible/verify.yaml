@@ -84,12 +84,38 @@
           - --version
       changed_when: false
 
-    - name: Verify ffmpeg responds
-      ansible.builtin.command:
-        argv:
-          - ffmpeg
-          - -version
-      changed_when: false
+    - name: Verify FFmpeg 9 or newer in the agent login shell
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      tags:
+        - ffmpeg
+      block:
+        - name: Read FFmpeg and ffprobe versions in the agent login shell
+          ansible.builtin.command:
+            argv:
+              - "{{ agent_shell }}"
+              - -lc
+              - "{{ item }} -version"
+          loop:
+            - ffmpeg
+            - ffprobe
+          register: agent_ffmpeg_versions
+          changed_when: false
+
+        - name: Assert FFmpeg and ffprobe versions are supported
+          ansible.builtin.assert:
+            that:
+              - >-
+                (item.stdout | regex_findall('^' ~ item.item ~ ' version n?([0-9]+)\.')
+                | first | default('0') | int) >= 9
+            fail_msg: >-
+              expected {{ item.item }} 9 or newer in the agent login shell;
+              got {{ item.stdout_lines | default([]) | first | default('missing') }}
+          loop: "{{ agent_ffmpeg_versions.results }}"
+          loop_control:
+            label: "{{ item.item }}"
 
     - name: Stat Probe binary
       ansible.builtin.stat:

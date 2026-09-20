@@ -43,13 +43,16 @@ Ansible installs and configures these user-facing commands. Package dependencies
 
 | Source | Commands |
 | --- | --- |
-| Ubuntu packages | `bwrap`, `docker`, `docker buildx`, `docker compose`, `docker-compose`, `ffmpeg`, `ffplay`, `ffprobe`, `fish`, `gh`, `go`, `gofmt`, `java` and the companion JDK tools, `make`, `mosh`, `mosh-client`, `mosh-server`, `rg`, and `unzip` |
+| Ubuntu packages | `bwrap`, `docker`, `docker buildx`, `docker compose`, `docker-compose`, `ffplay`, `fish`, `gh`, `go`, `gofmt`, `java` and the companion JDK tools, `make`, `mosh`, `mosh-client`, `mosh-server`, `rg`, and `unzip` |
+| Pinned [BtbN FFmpeg archive](https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-09-20-13-11) | `ffmpeg` and `ffprobe` 9.0.2 (build `n9.0.2-3-ga5923073bf`), with SHA-256 verification for ARM64 and x86_64 |
 | Pinned Node.js archive | `node` v26.7.0, `npm`, and `npx` |
 | Upstream installers | `bun`, `bunx`, `codex`, `deno`, `nub`, `nubx`, `omnara`, `pkgx`, `rtk`, `scc`, `task`, `trufflehog`, `uv`, and `uvx` |
 | Go-installed language tools | `gopls` v0.23.0 and `tspls` v0.1.0 |
 | Apple HLS Tools (x86_64 only) | `id3taggenerator`, `mediafilesegmenter`, `mediastreamsegmenter`, `mediastreamvalidator`, `mediasubtitlesegmenter`, and `variantplaylistcreator` |
 
 The `/usr/local/bin/tmux` command is an Ansible-managed terminal compatibility wrapper around Ubuntu's `/usr/bin/tmux`.
+
+Both provisioning and updates install the same pinned FFmpeg build under `/usr/local/lib` and link `ffmpeg` and `ffprobe` into `/usr/local/bin`. These take precedence over Ubuntu's binaries; the Ubuntu package remains installed for `ffplay`. `task verify` requires FFmpeg and ffprobe 9 or newer in the agent's fish login shell. The pin selects the latest uploaded 9.0 build as of September 20, 2026. Refresh the archive pin and checksums in `ansible/tasks/ffmpeg.yaml` when upgrading FFmpeg; BtbN keeps the last 14 daily builds.
 
 ## Apply config
 
@@ -96,5 +99,5 @@ For Moshi/mosh clients, rely on the Linux user being `agent`, not on a fixed tmu
 
 ## Maintenance
 
-- **`task update`** — Updates packages and user-scoped tools on the already-provisioned host.
+- **`task update`** — Updates packages and user-scoped tools on the already-provisioned host, and installs the pinned FFmpeg 9+ build.
 - **`task agent-ssh`** — Opens an agent SSH session with 10-minute connection multiplexing.

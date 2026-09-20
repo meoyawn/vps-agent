@@ -1,0 +1,97 @@
+- name: Install pinned FFmpeg 9 binaries
+  vars:
+    # Latest uploaded 9.0 build as of 2026-09-20; refresh before the daily build expires.
+    agent_ffmpeg_release: autobuild-2026-09-20-13-11
+    agent_ffmpeg_build: n9.0.2-3-ga5923073bf
+    agent_ffmpeg_arch_map:
+      aarch64: linuxarm64
+      arm64: linuxarm64
+      x86_64: linux64
+      amd64: linux64
+    agent_ffmpeg_checksums:
+      linux64: 7569c7c00a421d4fb4636925a126e96e051bb5cdd0b0e0a91576ddfadddd9bff
+      linuxarm64: 031d4336d6a9fab8c0bc26c3bca4fab0c09fcfdd405a7ef6ce2aa4b535fddce9
+    agent_ffmpeg_arch: "{{ agent_ffmpeg_arch_map[agent_detected_arch] }}"
+    agent_ffmpeg_archive_name: "ffmpeg-{{ agent_ffmpeg_build }}-{{ agent_ffmpeg_arch }}-gpl-9.0"
+    agent_ffmpeg_archive_path: "/var/cache/{{ agent_ffmpeg_archive_name }}.tar.xz"
+    agent_ffmpeg_install_dir: "/usr/local/lib/{{ agent_ffmpeg_archive_name }}"
+  block:
+    - name: Assert FFmpeg build architecture is supported
+      ansible.builtin.assert:
+        that:
+          - agent_detected_arch in agent_ffmpeg_arch_map
+        fail_msg: "unsupported CPU architecture {{ agent_detected_arch }} for FFmpeg builds"
+
+    - name: Install FFmpeg archive prerequisites
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - xz-utils
+        state: present
+
+    - name: Ensure FFmpeg installation directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - /var/cache
+        - /usr/local/lib
+        - /usr/local/bin
+
+    - name: Download pinned FFmpeg archive with checksum verification
+      ansible.builtin.get_url:
+        url: >-
+          https://github.com/BtbN/FFmpeg-Builds/releases/download/{{ agent_ffmpeg_release }}/{{ agent_ffmpeg_archive_name }}.tar.xz
+        dest: "{{ agent_ffmpeg_archive_path }}"
+        owner: root
+        group: root
+        mode: "0644"
+        checksum: "sha256:{{ agent_ffmpeg_checksums[agent_ffmpeg_arch] }}"
+
+    - name: Extract pinned FFmpeg archive
+      ansible.builtin.unarchive:
+        src: "{{ agent_ffmpeg_archive_path }}"
+        dest: /usr/local/lib
+        remote_src: true
+        owner: root
+        group: root
+      # get_url does not create the archive during a first-install dry run.
+      when: not ansible_check_mode
+
+    - name: Read staged FFmpeg and ffprobe versions
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_ffmpeg_install_dir }}/bin/{{ item }}"
+          - -version
+      loop:
+        - ffmpeg
+        - ffprobe
+      register: agent_ffmpeg_staged_versions
+      changed_when: false
+
+    - name: Assert staged FFmpeg and ffprobe versions are supported
+      ansible.builtin.assert:
+        that:
+          - >-
+            (item.stdout | regex_findall('^' ~ item.item ~ ' version n?([0-9]+)\.')
+            | first | default('0') | int) >= 9
+        fail_msg: >-
+          expected {{ item.item }} 9 or newer before activating the build;
+          got {{ item.stdout_lines | default([]) | first | default('missing') }}
+      loop: "{{ agent_ffmpeg_staged_versions.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: not ansible_check_mode
+
+    - name: Link pinned FFmpeg and ffprobe executables
+      ansible.builtin.file:
+        src: "{{ agent_ffmpeg_install_dir }}/bin/{{ item }}"
+        dest: "/usr/local/bin/{{ item }}"
+        state: link
+        force: true
+      loop:
+        - ffmpeg
+        - ffprobe

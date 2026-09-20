@@ -30,6 +30,11 @@
             state: present
             update_cache: true
 
+        - name: Install FFmpeg 9 or newer
+          ansible.builtin.import_tasks: tasks/ffmpeg.yaml
+          tags:
+            - ffmpeg
+
         - name: Install Node.js v26.7.0
           vars:
             agent_node_version: 26.7.0

@@ -11,6 +11,11 @@
         autoclean: true
         cache_valid_time: 3600
 
+    - name: Update FFmpeg to the pinned 9+ build
+      ansible.builtin.import_tasks: tasks/ffmpeg.yaml
+      tags:
+        - ffmpeg
+
     - name: Update Go to the latest stable release
       vars:
         agent_go_update_arch_map:
