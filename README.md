@@ -46,6 +46,7 @@ Ansible installs and configures these user-facing commands. Package dependencies
 | Ubuntu packages | `bwrap`, `docker`, `docker buildx`, `docker compose`, `docker-compose`, `ffplay`, `fish`, `gh`, `go`, `gofmt`, `java` and the companion JDK tools, `make`, `mosh`, `mosh-client`, `mosh-server`, `rg`, and `unzip` |
 | Pinned [BtbN FFmpeg archive](https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-09-20-13-11) | `ffmpeg` and `ffprobe` 9.0.2 (build `n9.0.2-3-ga5923073bf`), with SHA-256 verification for ARM64 and x86_64 |
 | Pinned Node.js archive | `node` v26.7.0, `npm`, and `npx` |
+| Pinned Flutter SDK | `flutter` 3.47.5 and bundled `dart` 3.13.4; official SDK archive on x86_64, pinned source revision and ARM64 Dart archive on ARM64, with SHA-256 verification for downloads |
 | Upstream installers | `bun`, `bunx`, `codex`, `deno`, `nub`, `nubx`, `omnara`, `pkgx`, `rtk`, `scc`, `task`, `trufflehog`, `uv`, and `uvx` |
 | Go-installed language tools | `gopls` v0.23.0 and `tspls` v0.1.0 |
 | Apple HLS Tools (x86_64 only) | `id3taggenerator`, `mediafilesegmenter`, `mediastreamsegmenter`, `mediastreamvalidator`, `mediasubtitlesegmenter`, and `variantplaylistcreator` |

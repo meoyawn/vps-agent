@@ -1,0 +1,99 @@
+- name: Install pinned Flutter SDK
+  vars:
+    agent_flutter_archive_path: "{{ agent_flutter_cache_dir }}/flutter_linux_{{ agent_flutter_version }}-stable.tar.xz"
+    agent_flutter_archive_checksum: 2132e990f236f8d22e7c6314b29a191a95b10d7cbcfec9b4e2e303d996652cbb
+    agent_flutter_engine_revision: af7e796e161ae0bb1ff0758c71a7105418bd9ded
+    agent_flutter_arm64_dart_archive_path: "{{ agent_flutter_cache_dir }}/{{ agent_flutter_engine_revision }}-dart-sdk-linux-arm64.zip"
+    agent_flutter_arm64_dart_checksum: e105fd0eeee0321ad946a5c7d8b670ab067dbe9ee4c7efc002394e7d1da3b303
+  environment:
+    HOME: "{{ agent_home }}"
+    PATH: "{{ agent_path }}"
+    CI: "true"
+  block:
+    - name: Ensure Flutter installation and download directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ agent_flutter_install_root }}"
+        - "{{ agent_flutter_cache_dir }}"
+
+    - name: Install official Flutter SDK archive on x86_64
+      when: agent_scc_arch == 'x86_64'
+      block:
+        - name: Download pinned Flutter SDK archive with checksum verification
+          ansible.builtin.get_url:
+            url: >-
+              https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_{{ agent_flutter_version }}-stable.tar.xz
+            dest: "{{ agent_flutter_archive_path }}"
+            tmp_dest: "{{ agent_flutter_cache_dir }}"
+            mode: "0644"
+            checksum: "sha256:{{ agent_flutter_archive_checksum }}"
+
+        - name: Extract pinned Flutter SDK archive
+          ansible.builtin.unarchive:
+            src: "{{ agent_flutter_archive_path }}"
+            dest: "{{ agent_flutter_install_root }}"
+            remote_src: true
+            creates: "{{ agent_flutter_bin_dir }}/flutter"
+          when: not ansible_check_mode
+
+    # Flutter publishes Linux SDK bundles only for x86_64; use its source
+    # checkout and engine-matched native Dart SDK on ARM64.
+    - name: Install pinned Flutter source and Dart SDK on ARM64
+      when: agent_scc_arch == 'arm64'
+      block:
+        - name: Clone pinned Flutter SDK source
+          ansible.builtin.git:
+            repo: https://github.com/flutter/flutter.git
+            dest: "{{ agent_flutter_sdk_dir }}"
+            version: "{{ agent_flutter_version }}"
+            depth: 1
+            single_branch: true
+          register: agent_flutter_source
+
+        - name: Assert Flutter source matches the pinned revision
+          ansible.builtin.assert:
+            that:
+              - agent_flutter_source.after == agent_flutter_revision
+            fail_msg: "expected Flutter source revision {{ agent_flutter_revision }}"
+          when: not ansible_check_mode
+
+        - name: Ensure Flutter SDK cache directory exists
+          ansible.builtin.file:
+            path: "{{ agent_flutter_bin_dir }}/cache"
+            state: directory
+            mode: "0755"
+
+        - name: Download pinned ARM64 Dart SDK with checksum verification
+          ansible.builtin.get_url:
+            url: >-
+              https://storage.googleapis.com/flutter_infra_release/flutter/{{ agent_flutter_engine_revision }}/dart-sdk-linux-arm64.zip
+            dest: "{{ agent_flutter_arm64_dart_archive_path }}"
+            tmp_dest: "{{ agent_flutter_cache_dir }}"
+            mode: "0644"
+            checksum: "sha256:{{ agent_flutter_arm64_dart_checksum }}"
+
+        - name: Extract pinned ARM64 Dart SDK
+          ansible.builtin.unarchive:
+            src: "{{ agent_flutter_arm64_dart_archive_path }}"
+            dest: "{{ agent_flutter_bin_dir }}/cache"
+            remote_src: true
+            creates: "{{ agent_flutter_bin_dir }}/cache/dart-sdk/bin/dart"
+          when: not ansible_check_mode
+
+        - name: Record the installed Dart SDK engine revision
+          ansible.builtin.copy:
+            dest: "{{ agent_flutter_bin_dir }}/cache/engine-dart-sdk.stamp"
+            content: "{{ agent_flutter_engine_revision }}\n"
+            mode: "0644"
+          when: not ansible_check_mode
+
+    - name: Initialize Flutter SDK cache as agent
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_flutter_bin_dir }}/flutter"
+          - --version
+        creates: "{{ agent_flutter_bin_dir }}/cache/flutter_tools.stamp"
+      when: not ansible_check_mode

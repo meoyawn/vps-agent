@@ -482,6 +482,11 @@
       become: true
       become_user: "{{ agent_user }}"
       block:
+        - name: Install Flutter SDK for agent user
+          ansible.builtin.import_tasks: tasks/flutter.yaml
+          tags:
+            - flutter
+
         - name: Install Bun for agent user
           ansible.builtin.shell: |
             set -euo pipefail
@@ -695,5 +700,9 @@
               case ":$PATH:" in
                   *:"{{ agent_deno_bin_dir }}":*) ;;
                   *) PATH="{{ agent_deno_bin_dir }}:$PATH" ;;
+              esac
+              case ":$PATH:" in
+                  *:"{{ agent_flutter_bin_dir }}":*) ;;
+                  *) PATH="{{ agent_flutter_bin_dir }}:$PATH" ;;
               esac
               export PATH

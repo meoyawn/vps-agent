@@ -41,3 +41,7 @@ end
 if not contains -- "{{ agent_deno_bin_dir }}" $PATH
     set -gx PATH "{{ agent_deno_bin_dir }}" $PATH
 end
+
+if not contains -- "{{ agent_flutter_bin_dir }}" $PATH
+    set -gx PATH "{{ agent_flutter_bin_dir }}" $PATH
+end

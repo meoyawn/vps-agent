@@ -45,6 +45,13 @@ agent_deno_install_root: "{{ agent_home }}/.deno"
 agent_deno_bin_dir: "{{ agent_deno_install_root }}/bin"
 agent_deno_binary_path: "{{ agent_deno_bin_dir }}/deno"
 
+agent_flutter_version: 3.47.5
+agent_flutter_revision: 6a19cca56475dbfba1478ee68d7bd0c2ef891da1
+agent_flutter_install_root: "{{ agent_home }}/.local/share/flutter-{{ agent_flutter_version }}"
+agent_flutter_sdk_dir: "{{ agent_flutter_install_root }}/flutter"
+agent_flutter_bin_dir: "{{ agent_flutter_sdk_dir }}/bin"
+agent_flutter_cache_dir: "{{ agent_home }}/.cache/flutter"
+
 agent_task_install_url: https://taskfile.dev/install.sh
 agent_task_binary_path: "{{ agent_local_bin_dir }}/task"
 
@@ -68,6 +75,7 @@ agent_path_entries:
   - "{{ agent_bun_bin_dir }}"
   - "{{ agent_nub_bin_dir }}"
   - "{{ agent_deno_bin_dir }}"
+  - "{{ agent_flutter_bin_dir }}"
   - /usr/local/bin
   - /usr/bin
   - /bin
@@ -75,17 +83,23 @@ agent_path: "{{ agent_path_entries | join(':') }}"
 
 agent_packages:
   - bubblewrap
+  - ca-certificates
+  - curl
   - docker-buildx
   - docker.io
   - docker-compose-v2
   - gh
+  - git
   - golang-go
   - libgbm1
   - libgtk-3-0t64
+  - libglu1-mesa
   - mosh
   - openjdk-25-jdk-headless
   - ripgrep
   - unzip
+  - xz-utils
+  - zip
   - make
   - ffmpeg
 

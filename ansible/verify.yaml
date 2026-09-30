@@ -223,6 +223,57 @@
           expected Node.js 26.7.0 or newer;
           got {{ agent_node_version.stdout | default('missing') }}
 
+    - name: Verify Flutter SDK in the agent login shell
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+        CI: "true"
+      tags:
+        - flutter
+      block:
+        - name: Read Dart version in the agent login shell
+          ansible.builtin.command:
+            argv:
+              - "{{ agent_shell }}"
+              - -lc
+              - dart --version
+          register: agent_dart_version
+          changed_when: false
+
+        - name: Assert Dart version is supported
+          ansible.builtin.assert:
+            that:
+              - >-
+                ((agent_dart_version.stdout ~ '\n' ~ agent_dart_version.stderr)
+                | regex_findall('Dart SDK version: ([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)')
+                | first | default('0.0.0'))
+                is ansible.builtin.version('3.13.0', 'ge', version_type='semver')
+            fail_msg: >-
+              expected Dart 3.13.0 or newer in the agent login shell;
+              got {{ agent_dart_version.stdout ~ agent_dart_version.stderr }}
+
+        - name: Read Flutter version in the agent login shell
+          ansible.builtin.command:
+            argv:
+              - "{{ agent_shell }}"
+              - -lc
+              - flutter --version
+          register: agent_flutter_version_output
+          changed_when: false
+
+        - name: Assert Flutter version is supported
+          ansible.builtin.assert:
+            that:
+              - >-
+                (agent_flutter_version_output.stdout
+                | regex_findall('(?m)^Flutter ([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)')
+                | first | default('0.0.0'))
+                is ansible.builtin.version('3.47.0', 'ge', version_type='semver')
+            fail_msg: >-
+              expected Flutter 3.47.0 or newer in the agent login shell;
+              got {{ agent_flutter_version_output.stdout_lines | first | default('missing') }}
+
     - name: Verify Playwright can install Chromium
       ansible.builtin.command:
         argv:
