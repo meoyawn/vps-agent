@@ -41,6 +41,14 @@ Run the agent on a VPS so you can close your laptop.
 
 Ansible installs and configures these user-facing commands. Package dependencies may add other implementation binaries.
 
+Rust client development uses Ubuntu's `rustup`, C/C++ build tools, CMake,
+libclang, pkg-config, ShellCheck, jq, and GPUI development libraries. Ansible
+installs Rust 1.98.1 with Clippy and rustfmt, plus checksum-verified native
+archives for kache 0.27.0, cargo-nextest 0.9.146, and Aube 2.5.1. Both `task apply`
+and `task update` provision this toolset; `task verify` checks it in the agent's
+fish login shell. To apply only these tools to an existing devbox, use
+`ansible-playbook ansible/vps.yaml --tags rust-client`.
+
 | Source | Commands |
 | --- | --- |
 | Ubuntu packages | `bwrap`, `docker`, `docker buildx`, `docker compose`, `docker-compose`, `ffplay`, `fish`, `gh`, `go`, `gofmt`, `java` and the companion JDK tools, `make`, `mosh`, `mosh-client`, `mosh-server`, `rg`, and `unzip` |

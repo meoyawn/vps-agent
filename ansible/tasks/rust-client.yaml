@@ -1,0 +1,114 @@
+- name: Install Rust client build dependencies
+  ansible.builtin.apt:
+    name:
+      - rustup
+      - build-essential
+      - cmake
+      - clang
+      - libclang-dev
+      - pkg-config
+      - shellcheck
+      - jq
+      - libasound2-dev
+      - libfontconfig1-dev
+      - libwayland-dev
+      - libxkbcommon-dev
+      - libxkbcommon-x11-dev
+      - libxcb1-dev
+      - libx11-xcb-dev
+      - libx11-dev
+      - libegl1-mesa-dev
+      - libvulkan-dev
+      - libssl-dev
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Configure Rust client tools for agent
+  become: true
+  become_user: "{{ agent_user }}"
+  environment:
+    HOME: "{{ agent_home }}"
+    PATH: "{{ agent_path }}"
+  vars:
+    agent_client_tool_cache: "{{ agent_home }}/.cache/client-tools"
+    agent_client_tools:
+      - name: kache
+        version: 0.27.0
+        url: >-
+          https://github.com/kunobi-ninja/kache/releases/download/v0.27.0/kache-{{ agent_rtk_arch }}-unknown-linux-musl.tar.gz
+        checksum: >-
+          {{ {'aarch64': 'd55f4d1444d572b0b4cf95f438b67f1fa8e9fc809dfbb6b00558611fe9c3a398',
+              'x86_64': '4b3544f2404807a60106c170f2a65ed8581ff1b7743fc225a1cf7ba851b143c2'}[agent_rtk_arch] }}
+      - name: cargo-nextest
+        version: 0.9.146
+        url: >-
+          https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.146/cargo-nextest-0.9.146-{{ agent_rtk_arch }}-unknown-linux-gnu.tar.gz
+        checksum: >-
+          {{ {'aarch64': 'b2e33d7c72de7ade0ff7b3a948ac37516b24f8a836b7a8870c1f634a94be9de9',
+              'x86_64': '682c21b777c333e96fd532e114d3a5a894e0729ab88d94c0a9f20f8419695428'}[agent_rtk_arch] }}
+      - name: aube
+        version: 2.5.1
+        url: >-
+          https://github.com/aubepkg/aube/releases/download/v2.5.1/aube-v2.5.1-{{ agent_rtk_arch }}-unknown-linux-gnu.tar.gz
+        checksum: >-
+          {{ {'aarch64': 'f9d03a3b49be9a51275917fe63676330c59d90d77bebe6fc17ec322a3571b7c0',
+              'x86_64': '16801e5a48272f3aa62533e626f18688ea97d8ee090fb5faac2e04900d374566'}[agent_rtk_arch] }}
+  block:
+    - name: Install pinned Rust toolchain and developer components
+      ansible.builtin.command:
+        argv:
+          - rustup
+          - toolchain
+          - install
+          - "{{ agent_rust_version }}"
+          - --profile
+          - minimal
+          - --component
+          - clippy,rustfmt
+          - --no-self-update
+      register: agent_rust_install
+      changed_when: "' installed' in agent_rust_install.stdout or 'installing component' in agent_rust_install.stderr"
+
+    - name: Read default Rust toolchain
+      ansible.builtin.command:
+        argv: [rustup, show, active-toolchain]
+      register: agent_rust_default
+      changed_when: false
+      failed_when: false
+
+    - name: Set pinned Rust toolchain as the agent default
+      ansible.builtin.command:
+        argv: [rustup, default, "{{ agent_rust_version }}"]
+      when: not agent_rust_default.stdout.startswith(agent_rust_version ~ '-')
+      changed_when: true
+
+    - name: Create client tool download and binary directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ agent_client_tool_cache }}"
+        - "{{ agent_local_bin_dir }}"
+
+    - name: Download pinned client tool archives with checksum verification
+      ansible.builtin.get_url:
+        url: "{{ item.url }}"
+        dest: "{{ agent_client_tool_cache }}/{{ item.name }}-{{ item.version }}.tar.gz"
+        mode: "0644"
+        checksum: "sha256:{{ item.checksum }}"
+      loop: "{{ agent_client_tools }}"
+      loop_control:
+        label: "{{ item.name }} {{ item.version }}"
+
+    - name: Install pinned client tool binaries
+      ansible.builtin.unarchive:
+        src: "{{ agent_client_tool_cache }}/{{ item.name }}-{{ item.version }}.tar.gz"
+        dest: "{{ agent_local_bin_dir }}"
+        remote_src: true
+        include: ["{{ item.name }}"]
+        mode: "0755"
+      loop: "{{ agent_client_tools }}"
+      loop_control:
+        label: "{{ item.name }} {{ item.version }}"

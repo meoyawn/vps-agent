@@ -478,6 +478,11 @@
       ansible.builtin.import_role:
         name: hls_tools
 
+    - name: Provision Rust client tools
+      ansible.builtin.import_tasks: tasks/rust-client.yaml
+      tags:
+        - rust-client
+
     - name: Apply agent-scoped tooling as agent
       become: true
       become_user: "{{ agent_user }}"
@@ -688,6 +693,10 @@
               case ":$PATH:" in
                   *:"{{ agent_local_bin_dir }}":*) ;;
                   *) PATH="{{ agent_local_bin_dir }}:$PATH" ;;
+              esac
+              case ":$PATH:" in
+                  *:"{{ agent_cargo_bin_dir }}":*) ;;
+                  *) PATH="{{ agent_cargo_bin_dir }}:$PATH" ;;
               esac
               case ":$PATH:" in
                   *:"{{ agent_bun_bin_dir }}":*) ;;

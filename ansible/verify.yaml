@@ -84,6 +84,33 @@
           - --version
       changed_when: false
 
+    - name: Verify Rust client build tools in the agent login shell
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_shell }}"
+          - -lc
+          - "{{ item }}"
+      loop:
+        - rustup --version
+        - "rustc +{{ agent_rust_version }} --version"
+        - "cargo +{{ agent_rust_version }} --version"
+        - "cargo +{{ agent_rust_version }} clippy --version"
+        - "rustfmt +{{ agent_rust_version }} --version"
+        - cmake --version
+        - clang --version
+        - shellcheck --version
+        - jq --version
+        - cargo nextest --version
+        - kache --version
+        - aube --version
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      changed_when: false
+      tags:
+        - rust-client
+
     - name: Verify FFmpeg 9 or newer in the agent login shell
       become: true
       become_user: "{{ agent_user }}"

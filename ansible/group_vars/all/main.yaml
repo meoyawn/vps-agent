@@ -24,6 +24,8 @@ agent_scc_arch: "{{ agent_arch_map[agent_detected_arch] | default('') }}"
 agent_rtk_arch: "{{ agent_rtk_arch_map[agent_detected_arch] | default('') }}"
 
 agent_local_bin_dir: "{{ agent_home }}/.local/bin"
+agent_cargo_bin_dir: "{{ agent_home }}/.cargo/bin"
+agent_rust_version: 1.98.1
 agent_profile_path: "{{ agent_home }}/.profile"
 
 agent_bun_install_url: https://bun.sh/install
@@ -72,6 +74,7 @@ agent_nubx_binary_path: "{{ agent_nub_bin_dir }}/nubx"
 
 agent_path_entries:
   - "{{ agent_local_bin_dir }}"
+  - "{{ agent_cargo_bin_dir }}"
   - "{{ agent_bun_bin_dir }}"
   - "{{ agent_nub_bin_dir }}"
   - "{{ agent_deno_bin_dir }}"

@@ -3,6 +3,11 @@
   become: true
   gather_facts: true
   tasks:
+    - name: Provision Rust client tools
+      ansible.builtin.import_tasks: tasks/rust-client.yaml
+      tags:
+        - rust-client
+
     - name: Update apt package indexes and upgrade installed packages
       ansible.builtin.apt:
         update_cache: true
