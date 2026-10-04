@@ -326,6 +326,8 @@
           - /etc/default/ufw
       register: ufw_default_input_policy
       changed_when: false
+      tags:
+        - firewall
 
     - name: Assert ufw default incoming policy drops traffic
       ansible.builtin.assert:
@@ -334,6 +336,8 @@
         fail_msg: >-
           expected DEFAULT_INPUT_POLICY=DROP;
           got {{ ufw_default_input_policy.stdout | default('missing') }}
+      tags:
+        - firewall
 
     - name: Read ufw default outgoing policy
       ansible.builtin.command:
@@ -344,6 +348,8 @@
           - /etc/default/ufw
       register: ufw_default_output_policy
       changed_when: false
+      tags:
+        - firewall
 
     - name: Assert ufw default outgoing policy accepts traffic
       ansible.builtin.assert:
@@ -352,44 +358,73 @@
         fail_msg: >-
           expected DEFAULT_OUTPUT_POLICY=ACCEPT;
           got {{ ufw_default_output_policy.stdout | default('missing') }}
+      tags:
+        - firewall
 
-    - name: Read ufw status
-      ansible.builtin.command:
-        argv:
-          - ufw
-          - status
-      register: ufw_status
-      changed_when: false
+    - name: Read configured and current ufw policy
+      ansible.builtin.import_tasks: tasks/ufw-policy.yaml
+      tags:
+        - firewall
 
     - name: Assert ufw policy is active
       ansible.builtin.assert:
         that:
-          - "'Status: active' in ufw_status.stdout"
-          - "'22/tcp' in ufw_status.stdout"
-          - "'60000:61000/udp' in ufw_status.stdout"
+          - "'Status: active' in agent_ufw_status.stdout"
         fail_msg: >-
-          expected active ufw with SSH and Mosh UDP rules;
-          got {{ ufw_status.stdout_lines | default([]) }}
+          expected active ufw;
+          got {{ agent_ufw_status.stdout_lines | default([]) }}
+      tags:
+        - firewall
 
-    - name: Assert ufw exposes only SSH and Mosh
-      ansible.builtin.shell: |
-        set -o pipefail
-        ufw status numbered | awk '
-          /^\[[[:space:]]*[0-9]+\]/ {
-            if ($0 !~ /^\[[[:space:]]*[0-9]+\][[:space:]]+(22\/tcp|60000:61000\/udp)([[:space:]]+\(v6\))?[[:space:]]+ALLOW IN/) {
-              print
-              unexpected = 1
-            }
-          }
-          END {
-            if (unexpected) {
-              exit 1
-            }
-          }
-        '
-      args:
-        executable: /bin/bash
+    - name: Assert ufw allows only SSH, Mosh, and trusted Docker host sources
+      ansible.builtin.assert:
+        that:
+          - agent_ufw_rule_lines | difference(agent_ufw_allowed_rule_lines) | length == 0
+          - agent_ufw_allowed_rule_lines | difference(agent_ufw_rule_lines) | length == 0
+        fail_msg: >-
+          unexpected ufw rules: {{ agent_ufw_rule_lines | difference(agent_ufw_allowed_rule_lines) }};
+          missing ufw rules: {{ agent_ufw_allowed_rule_lines | difference(agent_ufw_rule_lines) }}
+      tags:
+        - firewall
+
+    - name: Read live host INPUT chains
+      ansible.builtin.command:
+        argv:
+          - "{{ item }}"
+          - --wait
+          - -S
+          - INPUT
+      loop:
+        - iptables
+        - ip6tables
+      register: agent_firewall_input_chains
       changed_when: false
+      tags:
+        - firewall
+
+    - name: Assert live INPUT chains deny traffic outside ufw policy
+      ansible.builtin.assert:
+        that:
+          - "'-P INPUT DROP' in item.stdout_lines"
+          - item.stdout_lines | difference(agent_firewall_input_rules) | length == 0
+        fail_msg: >-
+          expected {{ item.item }} INPUT to default to DROP and use only ufw chains;
+          unexpected rules: {{ item.stdout_lines | difference(agent_firewall_input_rules) }}
+      vars:
+        agent_firewall_input_prefix: "{{ 'ufw6' if item.item == 'ip6tables' else 'ufw' }}"
+        agent_firewall_input_rules:
+          - -P INPUT DROP
+          - "-A INPUT -j {{ agent_firewall_input_prefix }}-before-logging-input"
+          - "-A INPUT -j {{ agent_firewall_input_prefix }}-before-input"
+          - "-A INPUT -j {{ agent_firewall_input_prefix }}-after-input"
+          - "-A INPUT -j {{ agent_firewall_input_prefix }}-after-logging-input"
+          - "-A INPUT -j {{ agent_firewall_input_prefix }}-reject-input"
+          - "-A INPUT -j {{ agent_firewall_input_prefix }}-track-input"
+      loop: "{{ agent_firewall_input_chains.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      tags:
+        - firewall
 
     - name: Read AppArmor unprivileged unconfined restriction
       ansible.builtin.command:

@@ -110,6 +110,15 @@ uninstall_packages: []
 agent_docker_compose_binary_path: /usr/libexec/docker/cli-plugins/docker-compose
 agent_docker_compose_compat_path: /usr/local/bin/docker-compose
 
+# Host INPUT access for trusted Docker bridges and source subnets.
+# A trailing + matches an interface prefix, including future Docker bridges.
+agent_docker_host_sources:
+  - interface: docker0
+    subnet: 172.16.0.0/12
+  - interface: br+
+    subnet: 172.16.0.0/12
+  - interface: br+
+    subnet: 192.168.0.0/16
 agent_scc_download_url: >-
   https://github.com/boyter/scc/releases/latest/download/scc_Linux_{{ agent_scc_arch }}.tar.gz
 
