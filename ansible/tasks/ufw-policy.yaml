@@ -1,25 +1,17 @@
-- name: Validate trusted Docker host sources
-  ansible.builtin.assert:
-    that:
-      - item.interface is match('^[A-Za-z0-9][A-Za-z0-9_.-]*[+]?$')
-      - item.interface | length <= 15
-      - item.subnet is match('^[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+/([1-9]|[12][0-9]|3[0-2])$')
-    fail_msg: "Docker host sources must specify an interface or prefix and an IPv4 CIDR: {{ item }}"
-  loop: "{{ agent_docker_host_sources }}"
-
-- name: Build allowed ufw rule descriptions
+- name: Define SSH-only and Mosh-only public access
   ansible.builtin.set_fact:
-    agent_ufw_allowed_rule_lines: >-
-      {{ agent_ufw_allowed_rule_text.splitlines() | reject('equalto', '') | list }}
-  vars:
-    agent_ufw_allowed_rule_text: |
-      22/tcp ALLOW IN Anywhere
-      60000:61000/udp ALLOW IN Anywhere
-      22/tcp (v6) ALLOW IN Anywhere (v6)
-      60000:61000/udp (v6) ALLOW IN Anywhere (v6)
-      {% for source in agent_docker_host_sources %}
-      Anywhere on {{ source.interface }} ALLOW IN {{ source.subnet }}
-      {% endfor %}
+    agent_ufw_allowed_rule_lines:
+      - 22/tcp ALLOW IN Anywhere
+      - 60000:61000/udp ALLOW IN Anywhere
+      - 22/tcp (v6) ALLOW IN Anywhere (v6)
+      - 60000:61000/udp (v6) ALLOW IN Anywhere (v6)
+    # Docker-published ports bypass host INPUT rules. Only container-originated
+    # traffic and replies may pass through DOCKER-USER to Docker's own rules.
+    agent_ufw_docker_forward_rules:
+      - -A DOCKER-USER -m conntrack --ctstate RELATED,ESTABLISHED -j RETURN
+      - -A DOCKER-USER -i docker0 -j RETURN
+      - -A DOCKER-USER -i br+ -j RETURN
+      - -A DOCKER-USER -j DROP
 
 - name: Read numbered ufw rules
   ansible.builtin.command:

@@ -379,17 +379,6 @@
             proto: udp
             comment: Mosh
 
-        - name: Allow trusted Docker sources to reach the host
-          community.general.ufw:
-            rule: allow
-            direction: in
-            interface: "{{ item.interface }}"
-            from_ip: "{{ item.subnet }}"
-            comment: Docker to host
-          loop: "{{ agent_docker_host_sources }}"
-          loop_control:
-            label: "{{ item.interface }} from {{ item.subnet }}"
-
         - name: Deny incoming traffic by default
           community.general.ufw:
             direction: incoming
@@ -400,9 +389,56 @@
             direction: outgoing
             default: allow
 
+        - name: Deny routed traffic by default
+          community.general.ufw:
+            direction: routed
+            default: deny
+
+        - name: Persist Docker forwarding protection through ufw
+          ansible.builtin.blockinfile:
+            path: "/etc/ufw/{{ item.file }}"
+            marker: "# {mark} ANSIBLE MANAGED DOCKER FORWARDING POLICY"
+            owner: root
+            group: root
+            mode: "0640"
+            validate: "{{ item.restore }} --test --noflush %s"
+            block: |
+              *filter
+              :DOCKER-USER - [0:0]
+              {% for rule in agent_ufw_docker_forward_rules %}
+              {{ rule }}
+              {% endfor %}
+              COMMIT
+          loop:
+            - file: after.rules
+              restore: /usr/sbin/iptables-restore
+            - file: after6.rules
+              restore: /usr/sbin/ip6tables-restore
+          loop_control:
+            label: "{{ item.file }}"
+          register: agent_ufw_docker_forward_policy
+
         - name: Enable ufw
           community.general.ufw:
             state: enabled
+
+        - name: Reload ufw after updating Docker forwarding protection
+          community.general.ufw:
+            state: reloaded
+          when: agent_ufw_docker_forward_policy is changed
+
+        - name: Filter forwarded traffic before Docker accepts published ports
+          ansible.builtin.iptables:
+            chain: FORWARD
+            jump: DOCKER-USER
+            action: insert
+            rule_num: "1"
+            ip_version: "{{ item }}"
+            state: present
+            wait: "10"
+          loop:
+            - ipv4
+            - ipv6
 
     - name: Apply sshd hardening
       ansible.builtin.import_role:

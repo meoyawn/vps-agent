@@ -376,7 +376,7 @@
       tags:
         - firewall
 
-    - name: Assert ufw allows only SSH, Mosh, and trusted Docker host sources
+    - name: Assert ufw allows only SSH and Mosh
       ansible.builtin.assert:
         that:
           - agent_ufw_rule_lines | difference(agent_ufw_allowed_rule_lines) | length == 0
@@ -423,6 +423,74 @@
       loop: "{{ agent_firewall_input_chains.results }}"
       loop_control:
         label: "{{ item.item }}"
+      tags:
+        - firewall
+
+    - name: Read live Docker forwarding chains
+      ansible.builtin.command:
+        argv:
+          - "{{ item.0 }}"
+          - --wait
+          - -S
+          - "{{ item.1 }}"
+      loop: "{{ ['iptables', 'ip6tables'] | product(['FORWARD', 'DOCKER-USER']) | list }}"
+      loop_control:
+        label: "{{ item | join(' ') }}"
+      register: agent_firewall_forward_chains
+      changed_when: false
+      tags:
+        - firewall
+
+    - name: Assert public traffic cannot bypass ufw through Docker
+      ansible.builtin.assert:
+        that:
+          - >-
+            item.stdout_lines[:2] == ['-P FORWARD DROP', '-A FORWARD -j DOCKER-USER']
+            if item.item.1 == 'FORWARD' else
+            item.stdout_lines[:agent_ufw_docker_forward_rules | length + 1]
+              == ['-N DOCKER-USER'] + agent_ufw_docker_forward_rules
+          - >-
+            item.item.1 == 'FORWARD' or
+            item.stdout_lines[agent_ufw_docker_forward_rules | length + 1:]
+              | difference(['-A DOCKER-USER -j RETURN']) | length == 0
+        fail_msg: >-
+          {{ item.item | join(' ') }} must block unsolicited public forwarding
+          before Docker's port-publishing rules; got {{ item.stdout_lines }}
+      loop: "{{ agent_firewall_forward_chains.results }}"
+      loop_control:
+        label: "{{ item.item | join(' ') }}"
+      tags:
+        - firewall
+
+    - name: Verify public SSH answers while PostgreSQL does not
+      # VPNs/proxies can acknowledge TCP before reaching the destination.
+      # PostgreSQL answers an SSLRequest with a byte before authentication.
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_playbook_python }}"
+          - -c
+          - |
+            import socket
+            import struct
+            import sys
+
+            with socket.create_connection((sys.argv[1], 22), timeout=5) as connection:
+                if not connection.recv(256).startswith(b"SSH-"):
+                    sys.exit("SSH did not answer the public connection probe on TCP 22")
+
+            try:
+                with socket.create_connection((sys.argv[1], 5432), timeout=5) as connection:
+                    connection.sendall(struct.pack("!II", 8, 80877103))
+                    response = connection.recv(1)
+            except OSError:
+                response = b""
+
+            if response:
+                sys.exit("PostgreSQL answered a public connection probe on TCP 5432")
+          - "{{ ansible_host }}"
+      delegate_to: localhost
+      become: false
+      changed_when: false
       tags:
         - firewall
 

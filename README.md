@@ -96,6 +96,10 @@ ssh devbox-agent 'fish -lic "whoami; command -v bun; command -v codex; codex --v
 - Use **mosh** when mobile or unstable networking matters, then attach to **tmux** inside it. See [orphaned Mosh notes](docs/orphaned-mosh.md) if disconnects leave stale sessions.
 - Zed remote projects are supported, but lowest priority here. Current tooling is still undercooked: Zed remote can orphan `codex-acp` on disconnect and brick the session. See [Zed notes](docs/zed.md).
 
+Public inbound access is limited to SSH (TCP 22) and Mosh (UDP 60000–61000), for both IPv4 and IPv6.
+Docker-published ports are blocked from the public network through `DOCKER-USER`; container-to-container traffic and outbound connections still work.
+Apply just this policy with `ansible-playbook ansible/vps.yaml --tags firewall`.
+
 If sessions wedge or disconnected agents leave processes behind, look in [docs](docs/). Known cases include Codex desktop app leaving orphaned processes on disconnect and `codex` inside `tmux` sometimes breaking; see [tmux notes](docs/tmux.md).
 
 ### Linux user vs tmux session
