@@ -1,10 +1,8 @@
-- name: Define SSH-only and Mosh-only public access
+- name: Define SSH-only public access
   ansible.builtin.set_fact:
     agent_ufw_allowed_rule_lines:
       - 22/tcp ALLOW IN Anywhere
-      - 60000:61000/udp ALLOW IN Anywhere
       - 22/tcp (v6) ALLOW IN Anywhere (v6)
-      - 60000:61000/udp (v6) ALLOW IN Anywhere (v6)
     # Docker-published ports bypass host INPUT rules. Only container-originated
     # traffic and replies may pass through DOCKER-USER to Docker's own rules.
     agent_ufw_docker_forward_rules:
@@ -23,6 +21,7 @@
     LC_ALL: C
   register: agent_ufw_status
   changed_when: false
+  check_mode: false
 
 - name: Normalize ufw rule descriptions
   ansible.builtin.set_fact:

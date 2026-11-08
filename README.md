@@ -2,7 +2,7 @@
 
 Run the agent on a VPS so you can close your laptop.
 
-**vps-agent** provisions an Ubuntu 24.04 ARM64 or x86_64 VPS for agent work, focused on [Codex remote connections](https://developers.openai.com/codex/remote-connections). It also sets up a persistent **tmux** shell, **mosh** support, tightened [**sshd** defaults](ansible/roles/sshd/), Docker, Bun, Node.js, Nub, uv, Deno, Task, and local Codex skills/plugins.
+**vps-agent** provisions an Ubuntu 24.04 ARM64 or x86_64 VPS for agent work, focused on [Codex remote connections](https://developers.openai.com/codex/remote-connections). It also sets up a persistent **tmux** shell over SSH, tightened [**sshd** defaults](ansible/roles/sshd/), Docker, Bun, Node.js, Nub, uv, Deno, Task, and local Codex skills/plugins.
 
 ## Prerequisites
 
@@ -55,7 +55,7 @@ fish login shell. To apply only these tools to an existing devbox, use
 | Pinned [BtbN FFmpeg archive](https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-09-20-13-11) | `ffmpeg` and `ffprobe` 9.0.2 (build `n9.0.2-3-ga5923073bf`), with SHA-256 verification for ARM64 and x86_64 |
 | Pinned Node.js archive | `node` v26.7.0, `npm`, and `npx` |
 | Pinned Flutter SDK | `flutter` 3.47.5 and bundled `dart` 3.13.4; official SDK archive on x86_64, pinned source revision and ARM64 Dart archive on ARM64, with SHA-256 verification for downloads |
-| Upstream installers | `bun`, `bunx`, `codex`, `deno`, `nub`, `nubx`, `omnara`, `pkgx`, `rtk`, `scc`, `task`, `trufflehog`, `uv`, and `uvx` |
+| Upstream installers | `bun`, `bunx`, `codex`, `deno`, `nub`, `nubx`, `pkgx`, `rtk`, `scc`, `task`, `trufflehog`, `uv`, and `uvx` |
 | Go-installed language tools | `gopls` v0.23.0 and `tspls` v0.1.0 |
 | Apple HLS Tools (x86_64 only) | `id3taggenerator`, `mediafilesegmenter`, `mediastreamsegmenter`, `mediastreamvalidator`, `mediasubtitlesegmenter`, and `variantplaylistcreator` |
 
@@ -81,8 +81,7 @@ Priorities:
 
 1. Codex desktop app.
 2. `tmux`.
-3. `mosh` + `tmux`.
-4. Zed remote projects.
+3. Zed remote projects.
 
 For Codex remote sessions, use the **`devbox-agent`** SSH host and choose a remote project folder under **`/home/agent/workspace/`**. Verify the connection from the laptop with:
 
@@ -93,12 +92,33 @@ ssh devbox-agent 'fish -lic "whoami; command -v bun; command -v codex; codex --v
 - Clone repositories under **`~/workspace/`** on the VPS. That directory is created for the `agent` user so project paths stay in one place.
 - Manual login is expected for `gh` and Codex after provisioning.
 - Use as many **tmux** windows (tab-like) or **panes** (splits in the same window) as you need, each in a different repo or working tree.
-- Use **mosh** when mobile or unstable networking matters, then attach to **tmux** inside it. See [orphaned Mosh notes](docs/orphaned-mosh.md) if disconnects leave stale sessions.
+- Reconnect over SSH and attach to **tmux** after a network interruption. Mosh remains installed, but its public UDP ports are closed.
 - Zed remote projects are supported, but lowest priority here. Current tooling is still undercooked: Zed remote can orphan `codex-acp` on disconnect and brick the session. See [Zed notes](docs/zed.md).
 
-Public inbound access is limited to SSH (TCP 22) and Mosh (UDP 60000–61000), for both IPv4 and IPv6.
+Public inbound service access is limited to SSH (TCP 22), for both IPv4 and IPv6. Mosh (UDP 60000–61000) is blocked.
 Docker-published ports are blocked from the public network through `DOCKER-USER`; container-to-container traffic and outbound connections still work.
 Apply just this policy with `ansible-playbook ansible/vps.yaml --tags firewall`.
+
+Provisioning installs upstream Linux **7.3.1** (`7.3.1-070301-generic`) using
+checksum-verified image and module packages from
+[Ubuntu's mainline archive](https://kernel.ubuntu.com/mainline/v7.3.1/), on x86_64
+and ARM64. It includes the [CVE-2026-98432 fix](https://lists.openwall.net/linux-cve-announce/2026/10/15/1),
+so the temporary MPTCP override and IPv4-options filter are not needed once it is running.
+
+`task apply` reboots when the pinned kernel is not already running, after checking
+the image, initramfs, and GRUB default entry. The previous kernel packages are kept
+as a boot fallback. Secure Boot must be disabled because the image is unsigned;
+Ansible refuses installation if Secure Boot is enabled or cannot be checked.
+Apply just the kernel and firewall with:
+
+```sh
+ansible-playbook ansible/vps.yaml --tags kernel,firewall
+```
+
+`task verify` checks the running kernel, user namespaces, Docker, and SSH access.
+Mainline builds are [outside Ubuntu's supported security-update stream](https://canonical-kernel-docs.readthedocs-hosted.com/explanation/about-mainline-builds/).
+Refresh the version and checksum pins deliberately for future kernel updates;
+`task update` updates Ubuntu packages but does not advance the mainline pin.
 
 If sessions wedge or disconnected agents leave processes behind, look in [docs](docs/). Known cases include Codex desktop app leaving orphaned processes on disconnect and `codex` inside `tmux` sometimes breaking; see [tmux notes](docs/tmux.md).
 
@@ -108,7 +128,7 @@ For shell sessions, run **`task tmux`**; [Taskfile](Taskfile.yaml) connects as L
 
 For direct agent SSH commands, run **`task agent-ssh`**. It keeps a multiplexed SSH master connection for 10 minutes so repeated commands avoid reconnecting.
 
-For Moshi/mosh clients, rely on the Linux user being `agent`, not on a fixed tmux session name. Mobile clients may attach existing tmux sessions without giving us full control over the session name.
+For mobile SSH clients, use Linux user `agent` and attach an existing tmux session.
 
 ## Maintenance
 

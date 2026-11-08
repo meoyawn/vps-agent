@@ -16,6 +16,20 @@
         autoclean: true
         cache_valid_time: 3600
 
+    - name: Check whether updated packages require a reboot
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: agent_update_reboot_required
+
+    - name: Report when installed updates require a reboot
+      ansible.builtin.debug:
+        msg: >-
+          A reboot is required to activate installed updates.
+          The running kernel is still {{ ansible_facts['kernel'] }}.
+          The mainline kernel is pinned separately; update its version and checksums in Ansible
+          when moving to a newer upstream release.
+      when: agent_update_reboot_required.stat.exists
+
     - name: Update FFmpeg to the pinned 9+ build
       ansible.builtin.import_tasks: tasks/ffmpeg.yaml
       tags:

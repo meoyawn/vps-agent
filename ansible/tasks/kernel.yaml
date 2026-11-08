@@ -1,0 +1,165 @@
+- name: Install and boot the pinned upstream kernel
+  vars:
+    agent_kernel_deb_arch: "{{ {'x86_64': 'amd64', 'arm64': 'arm64'}[agent_scc_arch] }}"
+    agent_kernel_package_version: 7.3.1-070301.202610301300
+    agent_kernel_cache_dir: "/var/cache/vps-agent/kernel-{{ agent_kernel_version }}"
+    # Verified against CHECKSUMS signed by Canonical's mainline builder:
+    # 60AA7B6F30434AE68E569963E50C6A0917C622B0.
+    agent_kernel_checksums:
+      amd64:
+        modules: 7f9a44175036fd63b01ec317ccace29e184261a794d39046902439458fb18c2f
+        image: 93c7c059e51cd81d7aa817f0cb0d2a7e94c5b04642a8e20de8b4ab4628b6a357
+      arm64:
+        modules: 4685add36e5c73217c17004b3b722e1c4689009d26b58d73f0d2645ce86d92c1
+        image: 816c9fefb0054ef90d6db984cd9b5c5c39a1c3db0fd9fb70e4caa39ae03f8ad0
+    agent_kernel_packages:
+      - name: "linux-modules-{{ agent_kernel_release }}"
+        checksum: "{{ agent_kernel_checksums[agent_kernel_deb_arch]['modules'] }}"
+      - name: "linux-image-unsigned-{{ agent_kernel_release }}"
+        checksum: "{{ agent_kernel_checksums[agent_kernel_deb_arch]['image'] }}"
+  block:
+    - name: Assert the mainline kernel target is supported
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['distribution'] == 'Ubuntu'
+          - agent_scc_arch in ['x86_64', 'arm64']
+        fail_msg: The pinned mainline packages require Ubuntu on x86_64 or ARM64.
+
+    - name: Refuse unsigned kernel installation when Secure Boot is enabled
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -c
+          - |
+            from pathlib import Path
+            import sys
+
+            efi = Path('/sys/firmware/efi')
+            if efi.exists():
+                variables = list((efi / 'efivars').glob('SecureBoot-*'))
+                if len(variables) != 1 or variables[0].read_bytes()[4:] != b'\x00':
+                    sys.exit('Secure Boot is enabled or unreadable; the unsigned mainline image cannot be used')
+      changed_when: false
+      check_mode: false
+
+    - name: Read automatically installed packages before preserving the running kernel
+      ansible.builtin.command:
+        argv:
+          - apt-mark
+          - showauto
+      register: agent_kernel_auto_packages
+      changed_when: false
+      check_mode: false
+
+    - name: Preserve running kernel packages as a boot fallback
+      ansible.builtin.command:
+        argv:
+          - apt-mark
+          - manual
+          - "{{ item }}"
+      loop:
+        - "linux-image-{{ ansible_facts['kernel'] }}"
+        - "linux-image-unsigned-{{ ansible_facts['kernel'] }}"
+        - "linux-modules-{{ ansible_facts['kernel'] }}"
+        - "linux-modules-extra-{{ ansible_facts['kernel'] }}"
+      when: item in agent_kernel_auto_packages.stdout_lines
+      changed_when: true
+
+    - name: Ensure mainline kernel package cache exists
+      ansible.builtin.file:
+        path: "{{ agent_kernel_cache_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Download checksum-verified mainline kernel packages
+      vars:
+        agent_kernel_package_filename: "{{ item.name }}_{{ agent_kernel_package_version }}_{{ agent_kernel_deb_arch }}.deb"
+        agent_kernel_download_base: "https://kernel.ubuntu.com/mainline/v{{ agent_kernel_version }}/{{ agent_kernel_deb_arch }}"
+      ansible.builtin.get_url:
+        url: "{{ agent_kernel_download_base }}/{{ agent_kernel_package_filename }}"
+        dest: "{{ agent_kernel_cache_dir }}/{{ item.name }}.deb"
+        owner: root
+        group: root
+        mode: "0644"
+        checksum: "sha256:{{ item.checksum }}"
+        timeout: 60
+      loop: "{{ agent_kernel_packages }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: not ansible_check_mode
+
+    - name: Install the mainline modules before the kernel image
+      ansible.builtin.apt:
+        deb: "{{ agent_kernel_cache_dir }}/{{ item.name }}.deb"
+        state: present
+      loop: "{{ agent_kernel_packages }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: not ansible_check_mode
+
+    - name: Validate GRUB configuration before rebooting
+      ansible.builtin.command:
+        argv:
+          - grub-script-check
+          - /boot/grub/grub.cfg
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Verify the selected boot image and initramfs before rebooting
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -c
+          - |
+            from pathlib import Path
+            import re
+            import subprocess
+            import sys
+
+            release = sys.argv[1]
+            for path in (f'/boot/vmlinuz-{release}', f'/boot/initrd.img-{release}', f'/lib/modules/{release}'):
+                if not Path(path).exists():
+                    sys.exit(f'Missing boot prerequisite: {path}')
+            config = Path('/boot/grub/grub.cfg').read_text()
+            first_kernel = re.search(r'(?m)^\s*linux(?:efi)?\s+\S*/vmlinuz-(\S+)', config)
+            if first_kernel is None or first_kernel[1] != release or 'set default="0"' not in config:
+                sys.exit('GRUB must select the pinned kernel as its default entry before rebooting')
+            environment = subprocess.check_output(['grub-editenv', 'list'], text=True)
+            if any(line.startswith('next_entry=') and line != 'next_entry=' for line in environment.splitlines()):
+                sys.exit('An existing GRUB one-time boot override needs to be resolved before rebooting')
+          - "{{ agent_kernel_release }}"
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Reboot into the pinned upstream kernel
+      ansible.builtin.reboot:
+        msg: "Rebooting to activate upstream Linux {{ agent_kernel_version }} with the IPv4 TCP security fix"
+        reboot_timeout: 600
+        connect_timeout: 10
+        post_reboot_delay: 15
+      when:
+        - not ansible_check_mode
+        - ansible_facts['kernel'] != agent_kernel_release
+
+    - name: Refresh running kernel facts after installation
+      ansible.builtin.setup:
+        gather_subset:
+          - '!all'
+          - '!min'
+          - kernel
+      when: not ansible_check_mode
+
+    - name: Assert the fixed upstream kernel is running
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['kernel'] == agent_kernel_release
+        fail_msg: >-
+          expected running kernel {{ agent_kernel_release }};
+          got {{ ansible_facts['kernel'] }}. Keep any existing mitigation until the fixed kernel is running.
+      when: not ansible_check_mode
+
+    - name: Configure agent workloads for the running kernel
+      ansible.builtin.import_tasks: kernel-sysctl.yaml
+      when: not ansible_check_mode

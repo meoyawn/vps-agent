@@ -1,0 +1,28 @@
+- name: Check whether the Ubuntu AppArmor user namespace restriction exists
+  ansible.builtin.stat:
+    path: /proc/sys/kernel/apparmor_restrict_unprivileged_userns
+  register: agent_apparmor_userns_control
+
+- name: Configure kernel sysctl values for agent workloads
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/60-codex-userns.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      vm.overcommit_memory = 1
+      vm.swappiness = {{ agent_swappiness }}
+      kernel.apparmor_restrict_unprivileged_unconfined = 0
+      {% if agent_apparmor_userns_control.stat.exists %}
+      kernel.apparmor_restrict_unprivileged_userns = 0
+      {% endif %}
+  register: codex_userns_sysctl
+
+- name: Reload the managed kernel sysctl values after changes
+  ansible.builtin.command:
+    argv:
+      - sysctl
+      - -p
+      - /etc/sysctl.d/60-codex-userns.conf
+  when: codex_userns_sysctl is changed
+  changed_when: true

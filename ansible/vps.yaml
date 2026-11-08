@@ -12,6 +12,11 @@
           unsupported CPU architecture {{ agent_detected_arch | default('unknown') }};
           supported architectures are {{ agent_arch_map.keys() | list | join(', ') }}
 
+    - name: Install the fixed upstream kernel
+      ansible.builtin.import_tasks: tasks/kernel.yaml
+      tags:
+        - kernel
+
     - name: Apply host-level provisioning as root
       block:
         - name: Install base packages
@@ -295,24 +300,6 @@
             group: "{{ agent_group }}"
             mode: "0644"
 
-        - name: Configure kernel sysctl values for agent workloads
-          ansible.builtin.copy:
-            dest: /etc/sysctl.d/60-codex-userns.conf
-            mode: "0644"
-            content: |
-              vm.overcommit_memory = 1
-              vm.swappiness = {{ agent_swappiness }}
-              kernel.apparmor_restrict_unprivileged_unconfined = 0
-              kernel.apparmor_restrict_unprivileged_userns = 0
-          register: codex_userns_sysctl
-
-        - name: Reload sysctl after Codex user namespace changes
-          ansible.builtin.command:
-            argv:
-              - sysctl
-              - --system
-          when: codex_userns_sysctl.changed
-
         - name: Install scc
           ansible.builtin.shell: |
             set -euo pipefail
@@ -371,13 +358,6 @@
             port: "22"
             proto: tcp
             comment: SSH
-
-        - name: Allow Mosh UDP through ufw
-          community.general.ufw:
-            rule: allow
-            port: "60000:61000"
-            proto: udp
-            comment: Mosh
 
         - name: Deny incoming traffic by default
           community.general.ufw:
@@ -652,10 +632,6 @@
           environment:
             HOME: "{{ agent_home }}"
             PATH: "{{ agent_path }}"
-
-        - name: Install Omnara CLI role
-          ansible.builtin.include_role:
-            name: omnara
 
         - name: Remove mise for agent user
           ansible.builtin.file:

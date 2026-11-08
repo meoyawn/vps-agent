@@ -3,6 +3,16 @@
   become: true
   gather_facts: true
   tasks:
+    - name: Assert the fixed upstream kernel is active
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['kernel'] == agent_kernel_release
+        fail_msg: >-
+          expected running kernel {{ agent_kernel_release }}, got {{ ansible_facts['kernel'] }};
+          installing the packages alone does not activate the security fix.
+      tags:
+        - kernel
+
     - name: Assert CPU architecture is supported
       ansible.builtin.assert:
         that:
@@ -376,7 +386,7 @@
       tags:
         - firewall
 
-    - name: Assert ufw allows only SSH and Mosh
+    - name: Assert ufw allows only SSH
       ansible.builtin.assert:
         that:
           - agent_ufw_rule_lines | difference(agent_ufw_allowed_rule_lines) | length == 0
@@ -511,7 +521,12 @@
           expected kernel.apparmor_restrict_unprivileged_unconfined=0;
           got {{ apparmor_restrict_unprivileged_unconfined.stdout | default('missing') }}
 
-    - name: Read AppArmor unprivileged user namespace restriction
+    - name: Check whether the Ubuntu AppArmor user namespace restriction exists
+      ansible.builtin.stat:
+        path: /proc/sys/kernel/apparmor_restrict_unprivileged_userns
+      register: agent_apparmor_userns_control
+
+    - name: Read AppArmor unprivileged user namespace restriction when supported
       ansible.builtin.command:
         argv:
           - sysctl
@@ -519,6 +534,7 @@
           - kernel.apparmor_restrict_unprivileged_userns
       register: apparmor_restrict_unprivileged_userns
       changed_when: false
+      when: agent_apparmor_userns_control.stat.exists
 
     - name: Assert AppArmor unprivileged user namespace restriction disabled
       ansible.builtin.assert:
@@ -527,6 +543,7 @@
         fail_msg: >-
           expected kernel.apparmor_restrict_unprivileged_userns=0;
           got {{ apparmor_restrict_unprivileged_userns.stdout | default('missing') }}
+      when: agent_apparmor_userns_control.stat.exists
 
     - name: Read VM overcommit memory setting
       ansible.builtin.command:
@@ -943,18 +960,6 @@
       become_user: "{{ agent_user }}"
       environment:
         HOME: "{{ agent_home }}"
-      changed_when: false
-
-    - name: Verify Omnara CLI responds
-      ansible.builtin.command:
-        argv:
-          - omnara
-          - --version
-      become: true
-      become_user: "{{ agent_user }}"
-      environment:
-        HOME: "{{ agent_home }}"
-        PATH: "{{ agent_path }}"
       changed_when: false
 
     - name: Verify uv responds in agent login shell

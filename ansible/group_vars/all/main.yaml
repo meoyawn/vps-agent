@@ -9,6 +9,9 @@ agent_swap_file_size: 8G
 agent_swap_file_size_bytes: 8589934592
 agent_swappiness: 10
 
+agent_kernel_version: "7.3.1"
+agent_kernel_release: "7.3.1-070301-generic"
+
 agent_arch_map:
   aarch64: arm64
   arm64: arm64
