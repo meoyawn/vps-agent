@@ -611,6 +611,28 @@
           owner={{ agent_authorized_keys_stat.stat.pw_name | default('missing') }}
           size={{ agent_authorized_keys_stat.stat.size | default('missing') }}
 
+    - name: Verify agent accepts a fresh SSH connection from the controller
+      ansible.builtin.command:
+        argv:
+          - ssh
+          - -o
+          - BatchMode=yes
+          - -o
+          - ConnectTimeout=10
+          - -o
+          - ControlMaster=no
+          - -o
+          - ControlPath=none
+          - "{{ agent_user }}@{{ ansible_host }}"
+          - "true"
+      delegate_to: localhost
+      become: false
+      register: agent_ssh_connection
+      changed_when: false
+      failed_when: agent_ssh_connection.rc != 0 or agent_ssh_connection.stdout != ''
+      tags:
+        - agent-ssh
+
     - name: Find synced SSH private keys
       ansible.builtin.find:
         paths: "{{ agent_ssh_dir }}"
@@ -1022,12 +1044,24 @@
         HOME: "{{ agent_home }}"
       changed_when: false
 
-    - name: Verify Nub responds in agent login shell
-      ansible.builtin.shell: |
-        set -euo pipefail
-        {{ agent_shell }} -lic 'nub --version'
-      args:
-        executable: /bin/bash
+    - name: Verify Nub is absent in agent login shell
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_shell }}"
+          - -lic
+          - not command -q nub; and not command -q nubx; and test ! -e "$HOME/.nub"
+      become: true
+      become_user: "{{ agent_user }}"
+      environment:
+        HOME: "{{ agent_home }}"
+      changed_when: false
+
+    - name: Verify mise responds in agent login shell
+      ansible.builtin.command:
+        argv:
+          - "{{ agent_shell }}"
+          - -lic
+          - mise --version
       become: true
       become_user: "{{ agent_user }}"
       environment:
@@ -1045,7 +1079,6 @@
           command -v task
           command -v rtk
           command -v codex
-          command -v nub
           codex --version
           test -d "{{ agent_workspace_root }}"
         '

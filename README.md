@@ -2,7 +2,7 @@
 
 Run the agent on a VPS so you can close your laptop.
 
-**vps-agent** provisions an Ubuntu 24.04 ARM64 or x86_64 VPS for agent work, focused on [Codex remote connections](https://developers.openai.com/codex/remote-connections). It also sets up a persistent **tmux** shell over SSH, tightened [**sshd** defaults](ansible/roles/sshd/), Docker, Bun, Node.js, Nub, uv, Deno, Task, and local Codex skills/plugins.
+**vps-agent** provisions an Ubuntu 24.04 ARM64 or x86_64 VPS for agent work, focused on [Codex remote connections](https://developers.openai.com/codex/remote-connections). It also sets up a persistent **tmux** shell over SSH, tightened [**sshd** defaults](ansible/roles/sshd/), Docker, Bun, Node.js, uv, Deno, Task, and local Codex skills/plugins.
 
 ## Prerequisites
 
@@ -16,12 +16,14 @@ Run the agent on a VPS so you can close your laptop.
   uv tool install ansible-lint
   ```
 
-- Local SSH config and keys under **`~/.ssh/`**. Provisioning syncs SSH files while excluding `known_hosts*`, `authorized_keys`, and sockets, then builds `/home/agent/.ssh/authorized_keys` from the synced public keys.
+- Local SSH config and keys under **`~/.ssh/`**. Provisioning syncs SSH files while excluding `known_hosts*`, `authorized_keys`, and sockets, then builds `/home/agent/.ssh/authorized_keys` from the synced public keys and validates it before replacement. `task verify` tests a fresh SSH login as the agent user with silent shell startup.
 - Local Git config at **`~/.gitconfig`**. Provisioning syncs it to the agent user so commits have the same author identity.
 - Local fish config under **`~/.config/fish/`** if you want it mirrored to the VPS.
   Keep `config.fish` portable shared configuration. Controller-only settings belong
   in `conf.d/` (for example, `conf.d/macos.fish`); controller `conf.d/`, completions,
   and `fish_variables` are excluded from VPS synchronization.
+  Homebrew and macOS application settings stay in `conf.d/macos.fish`; Ansible
+  generates `conf.d/agent_env.fish` for the VPS.
 - Local Codex skills/plugins under **`~/.codex/skills/`** and **`~/.codex/plugins/`** if you want them mirrored to the VPS.
 - A local SSH config entry for the Codex remote connection:
 
@@ -54,8 +56,9 @@ fish login shell. To apply only these tools to an existing devbox, use
 | Ubuntu packages | `bwrap`, `docker`, `docker buildx`, `docker compose`, `docker-compose`, `ffplay`, `fish`, `gh`, `go`, `gofmt`, `java` and the companion JDK tools, `make`, `mosh`, `mosh-client`, `mosh-server`, `rg`, and `unzip` |
 | Pinned [BtbN FFmpeg archive](https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-09-20-13-11) | `ffmpeg` and `ffprobe` 9.0.2 (build `n9.0.2-3-ga5923073bf`), with SHA-256 verification for ARM64 and x86_64 |
 | Pinned Node.js archive | `node` v26.7.0, `npm`, and `npx` |
+| Pinned [mise binary](https://github.com/jdx/mise/releases/tag/v2026.11.7) | `mise` 2026.11.7, with SHA-256 verification for ARM64 and x86_64 |
 | Pinned Flutter SDK | `flutter` 3.47.5 and bundled `dart` 3.13.4; official SDK archive on x86_64, pinned source revision and ARM64 Dart archive on ARM64, with SHA-256 verification for downloads |
-| Upstream installers | `bun`, `bunx`, `codex`, `deno`, `nub`, `nubx`, `pkgx`, `rtk`, `scc`, `task`, `trufflehog`, `uv`, and `uvx` |
+| Upstream installers | `bun`, `bunx`, `codex`, `deno`, `pkgx`, `rtk`, `scc`, `task`, `trufflehog`, `uv`, and `uvx` |
 | Go-installed language tools | `gopls` v0.23.0 and `tspls` v0.1.0 |
 | Apple HLS Tools (x86_64 only) | `id3taggenerator`, `mediafilesegmenter`, `mediastreamsegmenter`, `mediastreamvalidator`, `mediasubtitlesegmenter`, and `variantplaylistcreator` |
 
