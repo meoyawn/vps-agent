@@ -103,6 +103,7 @@ agent_packages:
   - mosh
   - openjdk-25-jdk-headless
   - ripgrep
+  - unison
   - unzip
   - xz-utils
   - zip
