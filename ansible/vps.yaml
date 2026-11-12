@@ -12,7 +12,12 @@
           unsupported CPU architecture {{ agent_detected_arch | default('unknown') }};
           supported architectures are {{ agent_arch_map.keys() | list | join(', ') }}
 
-    - name: Install the fixed upstream kernel
+    - name: Configure automatic Ubuntu security updates
+      ansible.builtin.import_tasks: tasks/security-updates.yaml
+      tags:
+        - security-updates
+
+    - name: Restore the Ubuntu security kernel
       ansible.builtin.import_tasks: tasks/kernel.yaml
       tags:
         - kernel

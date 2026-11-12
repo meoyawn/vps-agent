@@ -9,8 +9,12 @@ agent_swap_file_size: 8G
 agent_swap_file_size_bytes: 8589934592
 agent_swappiness: 10
 
-agent_kernel_version: "7.3.1"
-agent_kernel_release: "7.3.1-070301-generic"
+agent_kernel_metapackage: linux-image-virtual
+# CVE-2026-98432: https://ubuntu.com/security/CVE-2026-98432
+# Minimum fixed versions, not pins; the metapackage advances automatically.
+agent_kernel_security_min_versions:
+  "24.04": "6.8.0-149.149"
+  "26.04": "7.0.0-43.43"
 
 agent_arch_map:
   aarch64: arm64

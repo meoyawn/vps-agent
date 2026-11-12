@@ -3,15 +3,117 @@
   become: true
   gather_facts: true
   tasks:
-    - name: Assert the fixed upstream kernel is active
-      ansible.builtin.assert:
-        that:
-          - ansible_facts['kernel'] == agent_kernel_release
-        fail_msg: >-
-          expected running kernel {{ agent_kernel_release }}, got {{ ansible_facts['kernel'] }};
-          installing the packages alone does not activate the security fix.
+    - name: Verify the running Ubuntu kernel is fixed and future boots track updates
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -c
+          - |
+            from pathlib import Path
+            import platform
+            import re
+            import subprocess
+            import sys
+
+            minimum, metapackage = sys.argv[1:]
+            running = platform.release()
+            status, _, version = subprocess.check_output(
+                ['dpkg-query', '-W', '-f=${db:Status-Status}\t${Version}', f'linux-image-{running}'],
+                text=True).strip().partition('\t')
+            if status != 'installed' or not version:
+                sys.exit('The running kernel must be an installed Ubuntu image')
+            subprocess.run(['dpkg', '--compare-versions', version, 'ge', minimum], check=True)
+            dependencies = subprocess.check_output(
+                ['dpkg-query', '-W', '-f=${Depends}', metapackage], text=True)
+            target = re.search(r'linux-image-([0-9][0-9.+-]*-generic)', dependencies)
+            config = Path('/boot/grub/grub.cfg').read_text()
+            default = re.search(r'(?m)^\s*linux(?:efi)?\s+\S*/vmlinuz-(\S+)', config)
+            if target is None or default is None or target[1] != default[1] or 'set default="0"' not in config:
+                sys.exit('GRUB must automatically select the kernel tracked by the Ubuntu metapackage')
+            environment = subprocess.check_output(['grub-editenv', 'list'], text=True)
+            if any(line.startswith('next_entry=') and line != 'next_entry=' for line in environment.splitlines()):
+                sys.exit('A one-time GRUB override would bypass automatic kernel selection')
+            print(f'Running fixed Ubuntu kernel {running}; next boot tracks {target[1]}')
+          - "{{ agent_kernel_security_min_versions[ansible_facts['distribution_version']] }}"
+          - "{{ agent_kernel_metapackage }}"
+      changed_when: false
       tags:
         - kernel
+
+    - name: Verify automatic security updates
+      tags:
+        - security-updates
+      block:
+        - name: Check effective APT security update and reboot policy
+          ansible.builtin.command:
+            argv:
+              - /usr/bin/python3
+              - -c
+              - |
+                import apt
+                import apt_pkg
+                import platform
+                from string import Template
+                import subprocess
+                import sys
+
+                cache = apt.Cache()
+                if not cache['unattended-upgrades'].is_installed:
+                    sys.exit('unattended-upgrades must be installed')
+                if apt_pkg.config.find_i('APT::Periodic::Enable', 1) != 1:
+                    sys.exit('Periodic APT updates must be enabled')
+                for key in ('Update-Package-Lists', 'Unattended-Upgrade'):
+                    if apt_pkg.config.find(f'APT::Periodic::{key}') != '1':
+                        sys.exit(f'Daily APT {key} must be enabled')
+                distro = platform.freedesktop_os_release()
+                substitutions = {'distro_id': distro['NAME'], 'distro_codename': distro['VERSION_CODENAME']}
+                origins = {
+                    Template(value).substitute(substitutions)
+                    for value in apt_pkg.config.value_list('Unattended-Upgrade::Allowed-Origins')}
+                codename = distro['VERSION_CODENAME']
+                expected = {f'Ubuntu:{codename}', f'Ubuntu:{codename}-security',
+                            f'UbuntuESMApps:{codename}-apps-security', f'UbuntuESM:{codename}-infra-security'}
+                if origins != expected or apt_pkg.config.value_list('Unattended-Upgrade::Origins-Pattern'):
+                    sys.exit('Automatic upgrades must use Ubuntu release and security origins only')
+                if apt_pkg.config.value_list('Unattended-Upgrade::Package-Blacklist'):
+                    sys.exit('Automatic security updates must not exclude packages')
+                holds = subprocess.check_output(['apt-mark', 'showhold'], text=True).splitlines()
+                if any(name.startswith('linux-') for name in holds):
+                    sys.exit('Kernel packages must not be held back')
+                for key in ('Automatic-Reboot', 'Automatic-Reboot-WithUsers'):
+                    if not apt_pkg.config.find_b(f'Unattended-Upgrade::{key}', False):
+                        sys.exit(f'{key} must be enabled')
+                if apt_pkg.config.find('Unattended-Upgrade::Automatic-Reboot-Time') != '04:00':
+                    sys.exit('Required automatic reboots must be scheduled for 04:00 server time')
+          changed_when: false
+
+        - name: Read daily APT timer states
+          ansible.builtin.command:
+            argv:
+              - systemctl
+              - "{{ item }}"
+              - apt-daily.timer
+              - apt-daily-upgrade.timer
+          loop:
+            - is-enabled
+            - is-active
+          register: agent_security_update_timers
+          changed_when: false
+
+        - name: Assert both daily APT timers are enabled and active
+          ansible.builtin.assert:
+            that:
+              - item.stdout_lines == [agent_expected_timer_state, agent_expected_timer_state]
+            fail_msg: "expected both APT timers {{ agent_expected_timer_state }}; got {{ item.stdout_lines }}"
+          vars:
+            agent_expected_timer_state: "{{ 'enabled' if item.item == 'is-enabled' else 'active' }}"
+          loop: "{{ agent_security_update_timers.results }}"
+          loop_control:
+            label: "{{ item.item }}"
+
+        - name: Exercise the unattended security upgrade resolver without installing packages
+          ansible.builtin.command: unattended-upgrade --dry-run
+          changed_when: false
 
     - name: Assert CPU architecture is supported
       ansible.builtin.assert:

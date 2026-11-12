@@ -2,7 +2,7 @@
 
 Run the agent on a VPS so you can close your laptop.
 
-**vps-agent** provisions an Ubuntu 24.04 ARM64 or x86_64 VPS for agent work, focused on [Codex remote connections](https://developers.openai.com/codex/remote-connections). It also sets up a persistent **tmux** shell over SSH, tightened [**sshd** defaults](ansible/roles/sshd/), Docker, Bun, Node.js, uv, Deno, Task, and local Codex skills/plugins.
+**vps-agent** provisions an Ubuntu 24.04 or 26.04 LTS ARM64 or x86_64 VPS for agent work, focused on [Codex remote connections](https://developers.openai.com/codex/remote-connections). It also sets up a persistent **tmux** shell over SSH, tightened [**sshd** defaults](ansible/roles/sshd/), Docker, Bun, Node.js, uv, Deno, Task, and local Codex skills/plugins.
 
 ## Prerequisites
 
@@ -37,7 +37,7 @@ Run the agent on a VPS so you can close your laptop.
 
 ### VPS
 
-- Provision **Ubuntu 24.04** on **ARM64** or **x86_64**.
+- Provision **Ubuntu 24.04 or 26.04 LTS** on **ARM64** or **x86_64**.
 
 ## Installed command-line tools
 
@@ -102,26 +102,30 @@ Public inbound service access is limited to SSH (TCP 22), for both IPv4 and IPv6
 Docker-published ports are blocked from the public network through `DOCKER-USER`; container-to-container traffic and outbound connections still work.
 Apply just this policy with `ansible-playbook ansible/vps.yaml --tags firewall`.
 
-Provisioning installs upstream Linux **7.3.1** (`7.3.1-070301-generic`) using
-checksum-verified image and module packages from
-[Ubuntu's mainline archive](https://kernel.ubuntu.com/mainline/v7.3.1/), on x86_64
-and ARM64. It includes the [CVE-2026-98432 fix](https://lists.openwall.net/linux-cve-announce/2026/10/15/1),
-so the temporary MPTCP override and IPv4-options filter are not needed once it is running.
+Provisioning tracks Ubuntu's supported kernel through **`linux-image-virtual`**
+on x86_64 and ARM64. Ubuntu has released the
+[CVE-2026-98432 fix](https://ubuntu.com/security/CVE-2026-98432): Ansible requires
+at least **6.8.0-149.149** on Ubuntu 24.04 or **7.0.0-43.43** on Ubuntu 26.04.
+These are minimum fixed versions; future kernel versions arrive through APT.
 
-`task apply` reboots when the pinned kernel is not already running, after checking
-the image, initramfs, and GRUB default entry. The previous kernel packages are kept
-as a boot fallback. Secure Boot must be disabled because the image is unsigned;
-Ansible refuses installation if Secure Boot is enabled or cannot be checked.
-Apply just the kernel and firewall with:
+`task apply` checks the image, initramfs, and GRUB entry before rebooting into the
+current Ubuntu kernel. When migrating from the temporary mainline kernel, it
+keeps that image until the Ubuntu kernel has booted, then removes the mainline
+packages so GRUB automatically selects future Ubuntu kernels. Older Ubuntu
+images remain available as boot fallbacks. Apply just the kernel and automatic
+update policy with:
 
 ```sh
-ansible-playbook ansible/vps.yaml --tags kernel,firewall
+ansible-playbook ansible/vps.yaml --tags kernel,security-updates
 ```
 
-`task verify` checks the running kernel, user namespaces, Docker, and SSH access.
-Mainline builds are [outside Ubuntu's supported security-update stream](https://canonical-kernel-docs.readthedocs-hosted.com/explanation/about-mainline-builds/).
-Refresh the version and checksum pins deliberately for future kernel updates;
-`task update` updates Ubuntu packages but does not advance the mainline pin.
+Both `task apply` and `task update` configure daily
+[unattended security updates](https://documentation.ubuntu.com/server/how-to/software/automatic-updates/)
+from Ubuntu's release and security origins, including ESM when available.
+Required reboots are scheduled for **04:00 server time**, including when users
+are logged in; the current VPS uses UTC. Kernel updates need no manual pin changes.
+`task verify` checks the running kernel, automatic update policy and timers,
+the unattended upgrade resolver, user namespaces, Docker, and SSH access.
 
 If sessions wedge or disconnected agents leave processes behind, look in [docs](docs/). Known cases include Codex desktop app leaving orphaned processes on disconnect and `codex` inside `tmux` sometimes breaking; see [tmux notes](docs/tmux.md).
 

@@ -3,6 +3,11 @@
   become: true
   gather_facts: true
   tasks:
+    - name: Configure automatic Ubuntu security updates
+      ansible.builtin.import_tasks: tasks/security-updates.yaml
+      tags:
+        - security-updates
+
     - name: Provision Rust client tools
       ansible.builtin.import_tasks: tasks/rust-client.yaml
       tags:
@@ -26,8 +31,8 @@
         msg: >-
           A reboot is required to activate installed updates.
           The running kernel is still {{ ansible_facts['kernel'] }}.
-          The mainline kernel is pinned separately; update its version and checksums in Ansible
-          when moving to a newer upstream release.
+          Unattended upgrades will schedule a required reboot for 04:00 server time.
+          Run task --force apply to activate a newly installed Ubuntu kernel immediately.
       when: agent_update_reboot_required.stat.exists
 
     - name: Update FFmpeg to the pinned 9+ build
